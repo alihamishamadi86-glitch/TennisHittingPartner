@@ -50,6 +50,7 @@ jobs:
         run: |
           gcloud run jobs update thp-migrate --region "$REGION" --image "$REGISTRY/api:$TAG"
           gcloud run jobs execute thp-migrate --region "$REGION" --wait
+          gcloud run jobs update thp-manage --region "$REGION" --image "$REGISTRY/api:$TAG"
 
       - name: Deploy services
         run: |

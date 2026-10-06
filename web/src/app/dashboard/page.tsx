@@ -1,47 +1,69 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { LogoutButton } from "@/components/auth/logout-button";
+import { AppHeader } from "@/components/app-header";
 import { ResendVerification } from "@/components/auth/resend-verification";
 import { Alert } from "@/components/ui/alert";
-import { Logo } from "@/components/ui/logo";
-import { requireUser } from "@/lib/auth/server";
+import { buttonClasses } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { authedApi, requireUser } from "@/lib/auth/server";
+import type { User } from "@/lib/auth/types";
+import { formatNtrp } from "@/lib/profile/labels";
+import type { PartnerProfile } from "@/lib/profile/types";
 
 export const metadata = { title: "Dashboard · Tennis Hitting Partner" };
 
-const NEXT_STEPS = {
-  client: [
-    { title: "Complete your player profile", body: "Share your level (NTRP) and goals so we can match you." },
+type StepItem = { title: string; body: string; done?: boolean; href?: string };
+
+function clientSteps(user: User): StepItem[] {
+  return [
+    {
+      title: "Complete your player profile",
+      body: "Share your level (NTRP) and goals so we can match you.",
+      done: user.profile_complete,
+      href: "/onboarding/profile",
+    },
     { title: "Find courts near you", body: "We'll list tennis clubs and public courts in your city." },
     { title: "Book a hitting partner", body: "Pick a partner and an open slot that suits you." },
-  ],
-  partner: [
-    { title: "Complete your partner profile", body: "Your playing background, level and a photo." },
-    { title: "Get verified", body: "We'll confirm your level with a short court screening." },
+  ];
+}
+
+function partnerSteps(user: User, profile: PartnerProfile | null): StepItem[] {
+  const status = profile?.status ?? "draft";
+  return [
+    {
+      title: "Complete your partner profile",
+      body: "Your playing background, level, bio and a photo.",
+      done: user.profile_complete,
+      href: "/onboarding/profile",
+    },
+    {
+      title: "Get verified",
+      body: "We'll confirm your level with a short court screening.",
+      done: status === "approved",
+    },
     { title: "Set your availability", body: "Choose the clubs and times you can play." },
-  ],
-  admin: [{ title: "Admin tools", body: "Partner verification arrives in the next milestone." }],
-} as const;
+  ];
+}
 
 export default async function DashboardPage() {
   const user = await requireUser("/dashboard");
   if (!user.role) redirect("/onboarding/role");
 
+  const partnerProfile =
+    user.role === "partner" ? ((await (await authedApi()).GET("/me/partner-profile")).data ?? null) : null;
+  const steps = user.role === "partner" ? partnerSteps(user, partnerProfile) : user.role === "client" ? clientSteps(user) : [];
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="flex items-center justify-between gap-4 border-b border-zinc-200 bg-white px-4 py-3 sm:px-8 dark:border-zinc-800 dark:bg-zinc-900">
-        <Logo />
-        <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-zinc-600 sm:inline dark:text-zinc-400">{user.email}</span>
-          <LogoutButton />
-        </div>
-      </header>
+      <AppHeader user={user} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-8">
         {!user.email_verified && (
           <Alert>
-            Confirm your email address — we sent a link to <strong>{user.email}</strong>.{" "}
-            <ResendVerification />
+            Confirm your email address — we sent a link to <strong>{user.email}</strong>. <ResendVerification />
           </Alert>
         )}
+
         <div className="flex flex-col gap-2">
           <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
             {user.role === "partner" ? "Hitting partner" : user.role === "admin" ? "Admin" : "Player"}
@@ -50,21 +72,66 @@ export default async function DashboardPage() {
             Hi {user.full_name.split(" ")[0] || "there"}
           </h1>
         </div>
+
+        {user.role === "admin" && (
+          <Link href="/admin/partners" className={buttonClasses("primary", "w-fit")}>
+            Review partner applications
+          </Link>
+        )}
+
+        {partnerProfile && partnerProfile.status !== "draft" && (
+          <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-medium text-zinc-900 dark:text-zinc-50">Application status</p>
+              <StatusBadge status={partnerProfile.status} />
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {partnerProfile.status === "applied" && "Thanks for applying! We'll be in touch to schedule a short court screening."}
+              {partnerProfile.status === "screened" && "You passed screening — final approval is on its way."}
+              {partnerProfile.status === "approved" &&
+                `You're approved at NTRP ${formatNtrp(partnerProfile.verified_ntrp_rating ?? partnerProfile.ntrp_rating)}. Availability opens up soon.`}
+              {partnerProfile.status === "rejected" && "Your application wasn't approved. Check your email for details, update your profile and resubmit."}
+            </p>
+          </div>
+        )}
+
         <ol className="grid gap-3">
-          {NEXT_STEPS[user.role].map((step, index) => (
-            <li
-              key={step.title}
-              className="flex gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-100 text-sm font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                {index + 1}
-              </span>
-              <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-50">{step.title}</p>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">{step.body}</p>
-              </div>
-            </li>
-          ))}
+          {steps.map((step, index) => {
+            const body = (
+              <>
+                <span
+                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-semibold ${
+                    step.done
+                      ? "bg-emerald-600 text-white"
+                      : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  }`}
+                >
+                  {step.done ? "✓" : index + 1}
+                </span>
+                <div className="flex-1">
+                  <p className="font-medium text-zinc-900 dark:text-zinc-50">{step.title}</p>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">{step.body}</p>
+                </div>
+                {step.href && (
+                  <span className="self-center text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                    {step.done ? "Edit" : "Start"} →
+                  </span>
+                )}
+              </>
+            );
+            const className = "flex gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900";
+            return (
+              <li key={step.title}>
+                {step.href ? (
+                  <Link href={step.href} className={`${className} transition-colors hover:border-emerald-600`}>
+                    {body}
+                  </Link>
+                ) : (
+                  <div className={className}>{body}</div>
+                )}
+              </li>
+            );
+          })}
         </ol>
       </main>
     </div>

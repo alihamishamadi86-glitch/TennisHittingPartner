@@ -7,11 +7,23 @@ import { apiServer } from "@/lib/api/server";
 
 import type { User } from "./types";
 
-/** The signed-in user for this request, or null. Forwards the browser's cookies to the API. */
-export async function getCurrentUser(): Promise<User | null> {
+/** API client that acts as the signed-in user by forwarding the browser's cookies. */
+export async function authedApi() {
   const cookieHeader = (await cookies()).toString();
-  if (!cookieHeader) return null;
-  const { data } = await apiServer().GET("/me", { headers: { cookie: cookieHeader } });
+  const client = apiServer();
+  client.use({
+    onRequest({ request }) {
+      if (cookieHeader) request.headers.set("cookie", cookieHeader);
+      return request;
+    },
+  });
+  return client;
+}
+
+/** The signed-in user for this request, or null. */
+export async function getCurrentUser(): Promise<User | null> {
+  if (!(await cookies()).size) return null;
+  const { data } = await (await authedApi()).GET("/me");
   return data ?? null;
 }
 

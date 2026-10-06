@@ -61,10 +61,12 @@ class UserOut(BaseModel):
     full_name: str
     avatar_url: str | None
     has_password: bool
+    # Onboarding done: client profile saved, or partner application submitted.
+    profile_complete: bool
     created_at: datetime
 
     @classmethod
-    def from_user(cls, user: User) -> "UserOut":
+    def from_user(cls, user: User, profile_complete: bool = False) -> "UserOut":
         return cls(
             id=user.id,
             email=user.email,
@@ -73,6 +75,7 @@ class UserOut(BaseModel):
             full_name=user.full_name,
             avatar_url=user.avatar_url,
             has_password=user.password_hash is not None,
+            profile_complete=profile_complete,
             created_at=user.created_at,
         )
 

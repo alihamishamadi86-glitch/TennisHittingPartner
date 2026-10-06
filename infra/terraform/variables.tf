@@ -29,6 +29,8 @@ variable "event_types" {
     "user.registered",
     "auth.email_verification_requested",
     "auth.password_reset_requested",
+    "partner.application_submitted",
+    "partner.verification_decided",
   ]
 }
 

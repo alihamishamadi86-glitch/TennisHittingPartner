@@ -7,6 +7,9 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 
+# Local dev uploads (LocalStorage)
+.media/
+
 # Env / secrets
 .env
 .env.*

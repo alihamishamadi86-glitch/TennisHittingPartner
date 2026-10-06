@@ -10,12 +10,16 @@ SYSTEM_PING = "system.ping"
 USER_REGISTERED = "user.registered"
 EMAIL_VERIFICATION_REQUESTED = "auth.email_verification_requested"
 PASSWORD_RESET_REQUESTED = "auth.password_reset_requested"  # noqa: S105 (event name)
+PARTNER_APPLICATION_SUBMITTED = "partner.application_submitted"
+PARTNER_VERIFICATION_DECIDED = "partner.verification_decided"
 
 EVENT_TYPES: tuple[str, ...] = (
     SYSTEM_PING,
     USER_REGISTERED,
     EMAIL_VERIFICATION_REQUESTED,
     PASSWORD_RESET_REQUESTED,
+    PARTNER_APPLICATION_SUBMITTED,
+    PARTNER_VERIFICATION_DECIDED,
 )
 
 

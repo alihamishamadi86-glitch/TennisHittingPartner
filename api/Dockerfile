@@ -15,7 +15,8 @@ COPY pyproject.toml ./
 RUN mkdir app && touch app/__init__.py && pip install . && rm -rf app
 
 COPY . .
-RUN pip install --no-deps . && useradd --uid 10001 --no-create-home appuser
+RUN pip install --no-deps . && useradd --uid 10001 --no-create-home appuser \
+    && mkdir -p /srv/media && chown appuser /srv/media
 USER appuser
 
 ENV PORT=8080

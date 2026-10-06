@@ -33,6 +33,7 @@ from app.schemas.auth import (
     UserOut,
 )
 from app.services import auth as auth_service
+from app.services.users import to_user_out
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -68,7 +69,7 @@ async def register(
     tokens = await auth_service.issue_session(session, user, client)
     await commit_and_publish(session)
     set_session_cookies(response, tokens.access_token, tokens.refresh_token)
-    return UserOut.from_user(user)
+    return await to_user_out(session, user)
 
 
 @router.post("/login")
@@ -87,7 +88,7 @@ async def login(
     tokens = await auth_service.issue_session(session, user, client)
     await session.commit()
     set_session_cookies(response, tokens.access_token, tokens.refresh_token)
-    return UserOut.from_user(user)
+    return await to_user_out(session, user)
 
 
 @router.post("/refresh", response_model=UserOut, responses={401: {"description": "No session"}})
@@ -108,7 +109,7 @@ async def refresh(
         return expired
     await session.commit()
     set_session_cookies(response, tokens.access_token, tokens.refresh_token)
-    return UserOut.from_user(user)
+    return await to_user_out(session, user)
 
 
 @router.get("/session/renew", include_in_schema=False)
@@ -160,7 +161,7 @@ async def verify_email(body: TokenIn, session: SessionDep) -> UserOut:
     except auth_service.InvalidTokenError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Link is invalid or has expired") from exc
     await session.commit()
-    return UserOut.from_user(user)
+    return await to_user_out(session, user)
 
 
 @router.post("/verify-email/resend", status_code=status.HTTP_202_ACCEPTED)

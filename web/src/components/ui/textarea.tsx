@@ -1,0 +1,29 @@
+import type { TextareaHTMLAttributes } from "react";
+
+export function Textarea({
+  label,
+  id,
+  hint,
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; id: string; hint?: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        name={id}
+        rows={5}
+        className="rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+        aria-describedby={hint ? `${id}-hint` : undefined}
+        {...props}
+      />
+      {hint && (
+        <p id={`${id}-hint`} className="text-xs text-zinc-500 dark:text-zinc-400">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}

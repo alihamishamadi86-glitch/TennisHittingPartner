@@ -26,7 +26,7 @@ export function RoleChooser() {
       setPending(false);
       return;
     }
-    router.replace("/dashboard");
+    router.replace("/onboarding/profile");
     router.refresh();
   }
 

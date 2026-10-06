@@ -237,6 +237,185 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/client-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Client Profile */
+        get: operations["get_client_profile_me_client_profile_get"];
+        /** Save Client Profile */
+        put: operations["save_client_profile_me_client_profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/partner-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Partner Profile */
+        get: operations["get_partner_profile_me_partner_profile_get"];
+        /**
+         * Save Partner Profile
+         * @description Save the partner profile. Edits are allowed in any status; the verified level stays as
+         *     the agency set it.
+         */
+        put: operations["save_partner_profile_me_partner_profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/partner-profile/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Partner Profile */
+        post: operations["submit_partner_profile_me_partner_profile_submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/photo/upload-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Photo Upload */
+        post: operations["create_photo_upload_me_photo_upload_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Attach Photo */
+        put: operations["attach_photo_me_photo_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/levels/questionnaire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Questionnaire */
+        get: operations["questionnaire_levels_questionnaire_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/levels/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suggest */
+        post: operations["suggest_levels_suggest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Partners
+         * @description Partner applications, oldest submission first. Drafts are excluded unless requested.
+         */
+        get: operations["list_partners_admin_partners_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/partners/{partner_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Partner */
+        get: operations["get_partner_admin_partners__partner_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/partners/{partner_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_admin_partners__partner_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/system/ping": {
         parameters: {
             query?: never;
@@ -278,6 +457,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdminDecision
+         * @enum {string}
+         */
+        AdminDecision: "screened" | "approved" | "rejected";
         /** AuthProvidersOut */
         AuthProvidersOut: {
             /**
@@ -288,6 +472,65 @@ export interface components {
             /** Google */
             google: boolean;
         };
+        /**
+         * ClientGoal
+         * @enum {string}
+         */
+        ClientGoal: "rally" | "match_play" | "fitness" | "technique";
+        /** ClientProfileIn */
+        ClientProfileIn: {
+            /** Ntrp Rating */
+            ntrp_rating: number | string;
+            /** Utr Rating */
+            utr_rating?: number | string | null;
+            /** Years Playing */
+            years_playing?: number | null;
+            dominant_hand?: components["schemas"]["DominantHand"] | null;
+            play_style?: components["schemas"]["PlayStyle"] | null;
+            /** City */
+            city: string;
+            /** Region */
+            region?: string | null;
+            /**
+             * Country Code
+             * @default US
+             */
+            country_code: string;
+            /** Goals */
+            goals?: components["schemas"]["ClientGoal"][];
+        };
+        /** ClientProfileOut */
+        ClientProfileOut: {
+            /** Ntrp Rating */
+            ntrp_rating: number;
+            /** Utr Rating */
+            utr_rating?: number | null;
+            /** Years Playing */
+            years_playing?: number | null;
+            dominant_hand?: components["schemas"]["DominantHand"] | null;
+            play_style?: components["schemas"]["PlayStyle"] | null;
+            /** City */
+            city: string;
+            /** Region */
+            region?: string | null;
+            /**
+             * Country Code
+             * @default US
+             */
+            country_code: string;
+            /** Goals */
+            goals?: components["schemas"]["ClientGoal"][];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * DominantHand
+         * @enum {string}
+         */
+        DominantHand: "right" | "left" | "ambidextrous";
         /** ForgotPasswordIn */
         ForgotPasswordIn: {
             /**
@@ -301,6 +544,28 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** LevelAnswersIn */
+        LevelAnswersIn: {
+            /** Experience */
+            experience: number;
+            /** Rally */
+            rally: number;
+            /** Backhand */
+            backhand: number;
+            /** Serve */
+            serve: number;
+            /** Net */
+            net: number;
+            /** Competition */
+            competition: number;
+        };
+        /** LevelSuggestionOut */
+        LevelSuggestionOut: {
+            /** Ntrp Rating */
+            ntrp_rating: number;
+            /** Description */
+            description: string;
+        };
         /** LoginIn */
         LoginIn: {
             /**
@@ -310,6 +575,202 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** PartnerApplicationDetailOut */
+        PartnerApplicationDetailOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Avatar Url */
+            avatar_url: string | null;
+            status: components["schemas"]["PartnerStatus"];
+            /** Ntrp Rating */
+            ntrp_rating: number;
+            /** Verified Ntrp Rating */
+            verified_ntrp_rating: number | null;
+            background: components["schemas"]["PartnerBackground"] | null;
+            /** City */
+            city: string;
+            /** Region */
+            region: string | null;
+            /** Submitted At */
+            submitted_at: string | null;
+            profile: components["schemas"]["PartnerProfileOut"];
+            /** History */
+            history: components["schemas"]["VerificationOut"][];
+        };
+        /** PartnerApplicationOut */
+        PartnerApplicationOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Avatar Url */
+            avatar_url: string | null;
+            status: components["schemas"]["PartnerStatus"];
+            /** Ntrp Rating */
+            ntrp_rating: number;
+            /** Verified Ntrp Rating */
+            verified_ntrp_rating: number | null;
+            background: components["schemas"]["PartnerBackground"] | null;
+            /** City */
+            city: string;
+            /** Region */
+            region: string | null;
+            /** Submitted At */
+            submitted_at: string | null;
+        };
+        /**
+         * PartnerBackground
+         * @enum {string}
+         */
+        PartnerBackground: "professional" | "college" | "high_school_varsity" | "club" | "coach" | "other";
+        /** PartnerDecisionIn */
+        PartnerDecisionIn: {
+            decision: components["schemas"]["AdminDecision"];
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Verified Ntrp Rating */
+            verified_ntrp_rating?: number | string | null;
+        };
+        /** PartnerProfileIn */
+        PartnerProfileIn: {
+            /** Ntrp Rating */
+            ntrp_rating: number | string;
+            /** Utr Rating */
+            utr_rating?: number | string | null;
+            /** Years Playing */
+            years_playing?: number | null;
+            dominant_hand?: components["schemas"]["DominantHand"] | null;
+            play_style?: components["schemas"]["PlayStyle"] | null;
+            /** City */
+            city: string;
+            /** Region */
+            region?: string | null;
+            /**
+             * Country Code
+             * @default US
+             */
+            country_code: string;
+            background?: components["schemas"]["PartnerBackground"] | null;
+            /**
+             * Bio
+             * @default
+             */
+            bio: string;
+            /**
+             * Service Radius Km
+             * @default 15
+             */
+            service_radius_km: number;
+        };
+        /** PartnerProfileOut */
+        PartnerProfileOut: {
+            /** Ntrp Rating */
+            ntrp_rating: number;
+            /** Utr Rating */
+            utr_rating?: number | null;
+            /** Years Playing */
+            years_playing?: number | null;
+            dominant_hand?: components["schemas"]["DominantHand"] | null;
+            play_style?: components["schemas"]["PlayStyle"] | null;
+            /** City */
+            city: string;
+            /** Region */
+            region?: string | null;
+            /**
+             * Country Code
+             * @default US
+             */
+            country_code: string;
+            background?: components["schemas"]["PartnerBackground"] | null;
+            /**
+             * Bio
+             * @default
+             */
+            bio: string;
+            /**
+             * Service Radius Km
+             * @default 15
+             */
+            service_radius_km: number;
+            status: components["schemas"]["PartnerStatus"];
+            /** Verified Ntrp Rating */
+            verified_ntrp_rating: number | null;
+            /** Submitted At */
+            submitted_at: string | null;
+            /** Approved At */
+            approved_at: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Missing For Application */
+            missing_for_application?: string[];
+        };
+        /**
+         * PartnerStatus
+         * @enum {string}
+         */
+        PartnerStatus: "draft" | "applied" | "screened" | "approved" | "rejected";
+        /** PhotoAttachIn */
+        PhotoAttachIn: {
+            /** Object Name */
+            object_name: string;
+        };
+        /** PhotoUploadIn */
+        PhotoUploadIn: {
+            /** Content Type */
+            content_type: string;
+            /** Size */
+            size: number;
+        };
+        /** PhotoUploadOut */
+        PhotoUploadOut: {
+            /** Object Name */
+            object_name: string;
+            /** Upload Url */
+            upload_url: string;
+            /** Method */
+            method: string;
+            /** Headers */
+            headers: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * PlayStyle
+         * @enum {string}
+         */
+        PlayStyle: "baseliner" | "all_court" | "serve_and_volley" | "counterpuncher";
+        /** QuestionOut */
+        QuestionOut: {
+            /** Key */
+            key: string;
+            /** Prompt */
+            prompt: string;
+            /** Options */
+            options: string[];
+        };
+        /** QuestionnaireOut */
+        QuestionnaireOut: {
+            /** Questions */
+            questions: components["schemas"]["QuestionOut"][];
         };
         /** RegisterIn */
         RegisterIn: {
@@ -379,6 +840,8 @@ export interface components {
             avatar_url: string | null;
             /** Has Password */
             has_password: boolean;
+            /** Profile Complete */
+            profile_complete: boolean;
             /**
              * Created At
              * Format: date-time
@@ -402,6 +865,20 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** VerificationOut */
+        VerificationOut: {
+            from_status: components["schemas"]["PartnerStatus"];
+            to_status: components["schemas"]["PartnerStatus"];
+            /** Actor Id */
+            actor_id: string | null;
+            /** Note */
+            note: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
     };
     responses: never;
@@ -796,6 +1273,429 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_client_profile_me_client_profile_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientProfileOut"];
+                };
+            };
+            /** @description Not created yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_client_profile_me_client_profile_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_partner_profile_me_partner_profile_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerProfileOut"];
+                };
+            };
+            /** @description Not created yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_partner_profile_me_partner_profile_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartnerProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_partner_profile_me_partner_profile_submit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_photo_upload_me_photo_upload_url_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoUploadIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoUploadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    attach_photo_me_photo_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoAttachIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    questionnaire_levels_questionnaire_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionnaireOut"];
+                };
+            };
+        };
+    };
+    suggest_levels_suggest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LevelAnswersIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelSuggestionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_partners_admin_partners_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["PartnerStatus"] | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerApplicationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_partner_admin_partners__partner_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                partner_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerApplicationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_admin_partners__partner_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                partner_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartnerDecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerApplicationDetailOut"];
                 };
             };
             /** @description Validation Error */

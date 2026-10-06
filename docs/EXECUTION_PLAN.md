@@ -12,7 +12,7 @@ Google Cloud (Cloud Run, Cloud SQL Postgres + PostGIS, Pub/Sub, Cloud Tasks).
 |---|---|---|
 | M0 | Foundation & infrastructure | 🟡 Code complete — awaiting GCP staging apply |
 | M1 | Authentication (email/password + Google) | 🟡 Code complete — needs Google OAuth client per env |
-| M2 | Profiles & levels | ⬜ |
+| M2 | Profiles & levels | ✅ Code complete |
 | M3 | Club discovery | ⬜ |
 | M4 | Availability & partner search | ⬜ |
 | M5 | Booking core | ⬜ |
@@ -27,7 +27,8 @@ Assumed until decided otherwise:
 1. **Market:** US-only at launch (affects SMS 10DLC, 1099 payouts, Places region bias).
 2. **Booking type:** instant booking on open slots (no partner approval step).
 3. **Partner selection:** client picks from search results.
-4. **Admin tooling:** SQLAdmin for M2–M7; custom Next.js admin later.
+4. **Admin tooling:** focused admin pages in Next.js (changed from SQLAdmin in M2 — the partner
+   workflow needs custom logic, and the app's auth/roles are reused).
 
 ---
 
@@ -249,6 +250,25 @@ TennisHittingPartner/
 - Role selection, onboarding wizards, NTRP questionnaire, photo upload (GCS signed URLs).
 - Partner verification queue (SQLAdmin).
 - **Exit:** partner applies → admin approves; clients see profile gate.
+
+**M2 status (2026-10-07):**
+- [x] Client and partner profiles (NTRP in 0.5 steps, UTR, years, hand, style, location;
+  goals for clients; background, bio, travel radius for partners) with DB check constraints
+- [x] NTRP questionnaire served by the API (`/levels/questionnaire`, `/levels/suggest`);
+  self-assessment capped at 5.5, and at 4.0 without match experience
+- [x] Profile photos: signed direct-to-GCS uploads (V4, content-type + size bound), ownership
+  and type verified on attach, previous upload deleted; local-disk backend for development
+- [x] Partner workflow `draft → applied → screened → approved/rejected` (resubmit after
+  rejection) with an audit trail; minimum self-rated NTRP 4.5 to apply
+- [x] Emails via Pub/Sub: admins on new applications, partner on each decision (with note)
+- [x] Next.js: step-by-step profile forms for both roles, level quiz, photo upload, dashboard
+  progress + application status, admin queue and decision page
+- [x] `scripts.create_admin` (local: docker compose; GCP: `thp-manage` Cloud Run job)
+- [x] 90 backend tests; browser-verified partner apply → admin approve → email, and player onboarding
+
+**Deferred**
+- `partner_clubs` moves to M3, where clubs exist.
+- Image resizing/re-encoding of uploads and a sweep of never-attached uploads (M8).
 
 ### M3 — Club discovery / R3 (weeks 6–7)
 - Geocode + Overpass + Places worker, dedupe, PostGIS storage, city cache, status polling.

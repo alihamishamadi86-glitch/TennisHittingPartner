@@ -56,6 +56,17 @@ The OAuth client can't be created by Terraform; do it once per environment:
 
 Until `google_client_id` is set, the API reports Google as unavailable and the UI hides the button.
 
+## First admin
+
+Register the account in the web app, then promote it:
+
+```bash
+gcloud run jobs execute thp-manage --region us-central1 --wait \
+  --args=scripts.create_admin,you@example.com
+```
+
+Locally: `docker compose exec api python -m scripts.create_admin you@example.com`.
+
 ## Notes
 
 - Cloud Run URLs are deterministic (`https://<service>-<project-number>.<region>.run.app`), which
@@ -65,5 +76,7 @@ Until `google_client_id` is set, the API reports Google as unavailable and the U
 - Topics in `event_types` must match `api/app/events/catalog.py`.
 - Email uses the `console` backend in staging (messages are written to Cloud Logging) until a
   provider is wired in M7 — verification/reset links can be read from the worker logs.
+- Profile photos live in the public `<project>-media` bucket; the API signs upload URLs through
+  IAM `signBlob` on its own service account (no key files).
 - `enable_system_ping` exposes `POST /system/ping` for pipeline checks; turn it off (or put it
   behind admin auth, M1) before production.

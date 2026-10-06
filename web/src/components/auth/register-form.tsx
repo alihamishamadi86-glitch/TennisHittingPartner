@@ -41,7 +41,7 @@ export function RegisterForm({ initialRole, googleEnabled }: { initialRole: Self
       setPending(false);
       return;
     }
-    router.replace("/dashboard");
+    router.replace("/onboarding/profile");
     router.refresh();
   }
 

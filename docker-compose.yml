@@ -17,6 +17,8 @@ x-api-env: &api-env
   # sign-in locally (redirect URI: http://localhost:3000/api/auth/google/callback).
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  STORAGE_BACKEND: local
+  LOCAL_STORAGE_DIR: /srv/media
 
 services:
   db:
@@ -70,7 +72,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment: *api-env
     ports: ["8000:8000"]
-    volumes: ["./api/app:/srv/app:ro"]
+    volumes: ["./api/app:/srv/app:ro", "media:/srv/media"]
     depends_on:
       migrate: { condition: service_completed_successfully }
       pubsub-init: { condition: service_completed_successfully }
@@ -88,3 +90,4 @@ services:
 
 volumes:
   pgdata:
+  media:

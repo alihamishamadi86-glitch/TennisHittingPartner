@@ -67,6 +67,15 @@ class Settings(BaseSettings):
     smtp_host: str = "localhost"
     smtp_port: int = 1025
 
+    # File storage: "local" (dev; files on disk, served by the API) or "gcs".
+    storage_backend: str = "local"
+    local_storage_dir: str = ".media"
+    gcs_bucket: str = ""
+    max_photo_bytes: int = 5 * 1024 * 1024
+
+    # Minimum self-rated NTRP to apply as a hitting partner.
+    min_partner_ntrp: float = 4.5
+
     @model_validator(mode="after")
     def _require_real_secrets_in_cloud(self) -> "Settings":
         if self.is_cloud and self.jwt_secret.get_secret_value().startswith("local-dev-only"):

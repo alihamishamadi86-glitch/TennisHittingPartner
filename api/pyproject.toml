@@ -22,6 +22,7 @@ dependencies = [
     "argon2-cffi>=23.1",
     "pyjwt>=2.10",
     "email-validator>=2.2",
+    "google-cloud-storage>=2.18",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,7 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "RUF"]
 ignore = ["S101", "B008"]
+allowed-confusables = ["–"]  # en dash in user-facing copy
 
 [tool.ruff.lint.isort]
 known-third-party = ["alembic"]

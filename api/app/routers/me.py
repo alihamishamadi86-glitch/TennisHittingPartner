@@ -4,13 +4,14 @@ from app.core.deps import CurrentUser, SessionDep
 from app.models import UserRole
 from app.schemas.auth import RoleIn, UserOut
 from app.services import auth as auth_service
+from app.services.users import to_user_out
 
 router = APIRouter(prefix="/me", tags=["me"])
 
 
 @router.get("")
-async def get_me(user: CurrentUser) -> UserOut:
-    return UserOut.from_user(user)
+async def get_me(user: CurrentUser, session: SessionDep) -> UserOut:
+    return await to_user_out(session, user)
 
 
 @router.put("/role")
@@ -21,4 +22,4 @@ async def choose_role(body: RoleIn, user: CurrentUser, session: SessionDep) -> U
     except auth_service.RoleNotAllowedError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "Role has already been chosen") from exc
     await session.commit()
-    return UserOut.from_user(user)
+    return await to_user_out(session, user)

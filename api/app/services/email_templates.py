@@ -50,3 +50,45 @@ def password_reset_email(user: User, token: str) -> EmailMessage:
         text=f"{greeting}\n\n{body}\n\n{link}\n\n{footer}\n",
         html=_html(greeting, body, "Reset password", link, footer),
     )
+
+
+def partner_application_admin_email(admin: User, partner: User) -> EmailMessage:
+    link = f"{get_settings().public_web_url}/admin/partners/{partner.id}"
+    greeting = f"Hi {admin.full_name or 'there'},"
+    body = f"{partner.full_name or partner.email} applied to become a hitting partner."
+    footer = "Review their profile and schedule a court screening."
+    return EmailMessage(
+        to=admin.email,
+        subject=f"New partner application: {partner.full_name or partner.email}",
+        text=f"{greeting}\n\n{body}\n\n{link}\n\n{footer}\n",
+        html=_html(greeting, body, "Review application", link, footer),
+    )
+
+
+PARTNER_DECISION_COPY = {
+    "screened": (
+        "You passed your court screening",
+        "Great hitting with you! You've passed the screening — final approval is on its way.",
+    ),
+    "approved": (
+        "You're approved as a hitting partner",
+        "Welcome aboard! Your profile is approved. Next, set the clubs and times you can play.",
+    ),
+    "rejected": (
+        "Update on your partner application",
+        "Thanks for applying. We can't approve your application right now.",
+    ),
+}
+
+
+def partner_decision_email(partner: User, status: str, note: str) -> EmailMessage:
+    subject, body = PARTNER_DECISION_COPY[status]
+    link = f"{get_settings().public_web_url}/dashboard"
+    greeting = f"Hi {partner.full_name or 'there'},"
+    footer = f"Note from our team: {note}" if note else "Questions? Just reply to this email."
+    return EmailMessage(
+        to=partner.email,
+        subject=subject,
+        text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
+        html=_html(greeting, body, "Open dashboard", link, footer),
+    )

@@ -11,6 +11,8 @@ locals {
     COOKIE_SECURE      = "true"
     GOOGLE_CLIENT_ID   = var.google_client_id
     EMAIL_BACKEND      = "console" # until an email provider is wired (M7)
+    STORAGE_BACKEND    = "gcs"
+    GCS_BUCKET         = google_storage_bucket.media.name
   }
 }
 
@@ -197,6 +199,66 @@ resource "google_cloud_run_v2_job" "migrate" {
               secret  = google_secret_manager_secret.database_url.secret_id
               version = "latest"
             }
+          }
+        }
+
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image, client, client_version]
+  }
+
+  depends_on = [google_secret_manager_secret_iam_member.backend_access]
+}
+
+# One-off management commands, e.g.
+#   gcloud run jobs execute thp-manage --wait --args=scripts.create_admin,you@example.com
+resource "google_cloud_run_v2_job" "manage" {
+  name                = "${local.name_prefix}-manage"
+  location            = var.region
+  deletion_protection = false
+
+  template {
+    template {
+      service_account = google_service_account.api.email
+      max_retries     = 0
+
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [google_sql_database_instance.main.connection_name]
+        }
+      }
+
+      containers {
+        image   = local.placeholder_image
+        command = ["python", "-m"]
+        args    = ["scripts.create_admin", "--help"]
+
+        dynamic "env" {
+          for_each = local.backend_secrets
+          content {
+            name = env.key
+            value_source {
+              secret_key_ref {
+                secret  = env.value
+                version = "latest"
+              }
+            }
+          }
+        }
+
+        dynamic "env" {
+          for_each = local.backend_env
+          content {
+            name  = env.key
+            value = env.value
           }
         }
 

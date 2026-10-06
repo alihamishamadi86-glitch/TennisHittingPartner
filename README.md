@@ -26,6 +26,9 @@ make web         # Next.js on :3000
 | http://localhost:8000/docs | API (OpenAPI UI) |
 | http://localhost:8025 | Mailpit (captured email) |
 
+Make yourself an admin locally (after registering in the UI):
+`docker compose exec api python -m scripts.create_admin you@example.com`.
+
 Other targets: `make test`, `make lint`, `make fmt`, `make migration m="..."`, `make api-client`
 (regenerates `web/src/lib/api/schema.d.ts` from the running API). Run `make help` for the list.
 
