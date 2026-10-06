@@ -1,0 +1,82 @@
+# Local development stack. Mirrors the GCP topology:
+#   Cloud SQL  -> db (PostGIS)      Pub/Sub -> pubsub emulator (push subs → worker)
+#   Cloud Run  -> api, worker       Email   -> mailpit (UI on :8025)
+# Next.js runs on the host: `cd web && npm run dev`.
+
+x-api-env: &api-env
+  ENVIRONMENT: local
+  LOG_LEVEL: INFO
+  DATABASE_URL: postgresql+asyncpg://thp:thp@db:5432/thp
+  GCP_PROJECT_ID: thp-local
+  PUBSUB_EMULATOR_HOST: pubsub:8085
+
+services:
+  db:
+    image: imresamu/postgis:16-3.5 # multi-arch drop-in for postgis/postgis (arm64 support)
+    environment:
+      POSTGRES_USER: thp
+      POSTGRES_PASSWORD: thp
+      POSTGRES_DB: thp
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/local/init-test-db.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thp -d thp"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: gcloud beta emulators pubsub start --project=thp-local --host-port=0.0.0.0:8085
+    ports: ["8085:8085"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8085"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["1025:1025", "8025:8025"]
+
+  migrate:
+    build: ./api
+    command: alembic upgrade head
+    environment: *api-env
+    depends_on:
+      db: { condition: service_healthy }
+
+  pubsub-init:
+    build: ./api
+    command: python -m scripts.pubsub_bootstrap
+    environment:
+      <<: *api-env
+      WORKER_PUSH_ENDPOINT: http://worker:8001/pubsub/push
+    depends_on:
+      pubsub: { condition: service_healthy }
+
+  api:
+    build: ./api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment: *api-env
+    ports: ["8000:8000"]
+    volumes: ["./api/app:/srv/app:ro"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      pubsub-init: { condition: service_completed_successfully }
+
+  worker:
+    build: ./api
+    command: uvicorn app.worker:app --host 0.0.0.0 --port 8001 --reload
+    environment:
+      <<: *api-env
+      OUTBOX_RELAY_INTERVAL_SECONDS: "2"
+    ports: ["8001:8001"]
+    volumes: ["./api/app:/srv/app:ro"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:

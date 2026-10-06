@@ -1,0 +1,63 @@
+name: Deploy
+
+# Required GitHub configuration (Settings → Environments → staging → variables):
+#   GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOYER_SA
+# Values come from `terraform output` (see infra/README.md).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/thp-images
+      TAG: ${{ github.sha }}
+      REGION: ${{ vars.GCP_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push images
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build -t "$REGISTRY/api:$TAG" api
+          docker build -t "$REGISTRY/web:$TAG" web
+          docker push "$REGISTRY/api:$TAG"
+          docker push "$REGISTRY/web:$TAG"
+
+      - name: Run database migrations
+        run: |
+          gcloud run jobs update thp-migrate --region "$REGION" --image "$REGISTRY/api:$TAG"
+          gcloud run jobs execute thp-migrate --region "$REGION" --wait
+
+      - name: Deploy services
+        run: |
+          gcloud run deploy thp-worker --region "$REGION" --image "$REGISTRY/api:$TAG"
+          gcloud run deploy thp-api    --region "$REGION" --image "$REGISTRY/api:$TAG"
+          gcloud run deploy thp-web    --region "$REGION" --image "$REGISTRY/web:$TAG"
+
+      - name: Smoke test event pipeline
+        run: |
+          API_URL=$(gcloud run services describe thp-api --region "$REGION" --format 'value(status.url)')
+          ./scripts/smoke_ping.sh "$API_URL"

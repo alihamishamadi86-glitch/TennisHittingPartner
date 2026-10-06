@@ -1,0 +1,2 @@
+bucket = "deft-idiom-510807-q8-tfstate"
+prefix = "terraform/state"
