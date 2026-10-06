@@ -58,9 +58,3 @@ resource "google_secret_manager_secret_version" "database_url" {
   secret_data = "postgresql+asyncpg://${google_sql_user.app.name}:${random_password.db.result}@/${google_sql_database.app.name}?host=/cloudsql/${google_sql_database_instance.main.connection_name}"
 }
 
-resource "google_secret_manager_secret_iam_member" "database_url_access" {
-  for_each  = local.backend_service_accounts
-  secret_id = google_secret_manager_secret.database_url.id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${each.value}"
-}

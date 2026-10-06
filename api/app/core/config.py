@@ -1,7 +1,7 @@
 from enum import StrEnum
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,6 +40,46 @@ class Settings(BaseSettings):
 
     # Exposes POST /system/ping for end-to-end event pipeline checks.
     enable_system_ping: bool = True
+
+    # Public origin of the Next.js app. Browser traffic reaches the API through its /api proxy,
+    # so links in emails and the OAuth redirect URI are built from this.
+    public_web_url: str = "http://localhost:3000"
+
+    # Auth
+    jwt_secret: SecretStr = SecretStr("local-dev-only-insecure-jwt-secret-change-me")
+    access_token_ttl_minutes: int = 15
+    refresh_token_ttl_days: int = 30
+    email_verification_ttl_hours: int = 24
+    password_reset_ttl_minutes: int = 60
+    max_failed_logins: int = 5
+    login_lockout_minutes: int = 15
+    cookie_secure: bool = False
+    # Browser-facing path of the API's /auth routes (behind the Next.js /api proxy). Refresh and
+    # OAuth-state cookies are scoped to it so they are not sent on every request.
+    auth_cookie_path: str = "/api/auth"
+
+    google_client_id: str = ""
+    google_client_secret: SecretStr = SecretStr("")
+
+    # Email: "console" logs messages (staging until M7), "smtp" sends (Mailpit locally).
+    email_backend: str = "console"
+    email_from: str = "Tennis Hitting Partner <no-reply@tennishittingpartner.local>"
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+
+    @model_validator(mode="after")
+    def _require_real_secrets_in_cloud(self) -> "Settings":
+        if self.is_cloud and self.jwt_secret.get_secret_value().startswith("local-dev-only"):
+            raise ValueError("JWT_SECRET must be set in staging/production")
+        return self
+
+    @property
+    def google_redirect_uri(self) -> str:
+        return f"{self.public_web_url}{self.auth_cookie_path}/google/callback"
+
+    @property
+    def google_enabled(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret.get_secret_value())
 
     @property
     def is_cloud(self) -> bool:

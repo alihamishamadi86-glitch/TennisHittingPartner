@@ -2,8 +2,13 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.db import get_sessionmaker
 from app.events.catalog import EVENT_TYPES
+from app.events.publisher import get_publisher
+from app.events.relay import publish_committed
 from app.models import OutboxEvent
+
+_SESSION_KEY = "outbox_events"
 
 
 def record_event(
@@ -14,4 +19,14 @@ def record_event(
         raise ValueError(f"Unknown event type: {event_type}")
     event = OutboxEvent(event_type=event_type, version=version, payload=data)
     session.add(event)
+    session.info.setdefault(_SESSION_KEY, []).append(event)
     return event
+
+
+async def commit_and_publish(session: AsyncSession) -> None:
+    """Commit, then immediately publish the events this session recorded (best effort;
+    the scheduled outbox sweep delivers anything that fails here)."""
+    events: list[OutboxEvent] = session.info.pop(_SESSION_KEY, [])
+    await session.commit()
+    if events:
+        await publish_committed(get_sessionmaker(), get_publisher(), [e.id for e in events])

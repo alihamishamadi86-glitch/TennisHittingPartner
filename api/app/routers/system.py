@@ -4,11 +4,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db import get_session, get_sessionmaker
+from app.core.db import get_session
 from app.events.catalog import SYSTEM_PING
-from app.events.outbox import record_event
-from app.events.publisher import get_publisher
-from app.events.relay import publish_committed
+from app.events.outbox import commit_and_publish, record_event
 from app.models import SystemPing
 from app.schemas.system import SystemPingOut
 
@@ -20,10 +18,9 @@ async def create_ping(session: Annotated[AsyncSession, Depends(get_session)]) ->
     """Emit a `system.ping` event; poll GET /system/ping/{id} until `received_at` is set."""
     ping = SystemPing(id=uuid.uuid4())
     session.add(ping)
-    event = record_event(session, SYSTEM_PING, {"ping_id": str(ping.id)})
-    await session.commit()
+    record_event(session, SYSTEM_PING, {"ping_id": str(ping.id)})
+    await commit_and_publish(session)
     await session.refresh(ping)
-    await publish_committed(get_sessionmaker(), get_publisher(), [event.id])
     return SystemPingOut.model_validate(ping)
 
 

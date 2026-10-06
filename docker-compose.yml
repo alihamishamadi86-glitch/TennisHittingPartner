@@ -9,6 +9,14 @@ x-api-env: &api-env
   DATABASE_URL: postgresql+asyncpg://thp:thp@db:5432/thp
   GCP_PROJECT_ID: thp-local
   PUBSUB_EMULATOR_HOST: pubsub:8085
+  PUBLIC_WEB_URL: http://localhost:3000
+  EMAIL_BACKEND: smtp
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  # Optional: put GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in a root .env file to enable Google
+  # sign-in locally (redirect URI: http://localhost:3000/api/auth/google/callback).
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
 
 services:
   db:

@@ -7,6 +7,10 @@ locals {
     GCP_PROJECT_ID     = var.project_id
     LOG_LEVEL          = "INFO"
     ENABLE_SYSTEM_PING = tostring(var.enable_system_ping)
+    PUBLIC_WEB_URL     = local.run_url.web
+    COOKIE_SECURE      = "true"
+    GOOGLE_CLIENT_ID   = var.google_client_id
+    EMAIL_BACKEND      = "console" # until an email provider is wired (M7)
   }
 }
 
@@ -42,12 +46,15 @@ resource "google_cloud_run_v2_service" "api" {
           value = env.value
         }
       }
-      env {
-        name = "DATABASE_URL"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.database_url.secret_id
-            version = "latest"
+      dynamic "env" {
+        for_each = local.backend_secrets
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = env.value
+              version = "latest"
+            }
           }
         }
       }
@@ -69,7 +76,7 @@ resource "google_cloud_run_v2_service" "api" {
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
 
-  depends_on = [google_secret_manager_secret_iam_member.database_url_access]
+  depends_on = [google_secret_manager_secret_iam_member.backend_access]
 }
 
 resource "google_cloud_run_v2_service" "worker" {
@@ -107,12 +114,15 @@ resource "google_cloud_run_v2_service" "worker" {
           value = env.value
         }
       }
-      env {
-        name = "DATABASE_URL"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.database_url.secret_id
-            version = "latest"
+      dynamic "env" {
+        for_each = local.backend_secrets
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = env.value
+              version = "latest"
+            }
           }
         }
       }
@@ -128,7 +138,7 @@ resource "google_cloud_run_v2_service" "worker" {
     ignore_changes = [template[0].containers[0].image, client, client_version]
   }
 
-  depends_on = [google_secret_manager_secret_iam_member.database_url_access]
+  depends_on = [google_secret_manager_secret_iam_member.backend_access]
 }
 
 resource "google_cloud_run_v2_service" "web" {
@@ -202,7 +212,7 @@ resource "google_cloud_run_v2_job" "migrate" {
     ignore_changes = [template[0].template[0].containers[0].image, client, client_version]
   }
 
-  depends_on = [google_secret_manager_secret_iam_member.database_url_access]
+  depends_on = [google_secret_manager_secret_iam_member.backend_access]
 }
 
 # Public: web and API (API authorization is enforced in-app). Worker: invoker SA only.

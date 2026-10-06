@@ -11,7 +11,7 @@ Google Cloud (Cloud Run, Cloud SQL Postgres + PostGIS, Pub/Sub, Cloud Tasks).
 | Milestone | Scope | Status |
 |---|---|---|
 | M0 | Foundation & infrastructure | 🟡 Code complete — awaiting GCP staging apply |
-| M1 | Authentication (email/password + Google) | ⬜ |
+| M1 | Authentication (email/password + Google) | 🟡 Code complete — needs Google OAuth client per env |
 | M2 | Profiles & levels | ⬜ |
 | M3 | Club discovery | ⬜ |
 | M4 | Availability & partner search | ⬜ |
@@ -225,6 +225,25 @@ TennisHittingPartner/
 - Email/password with verification & reset, Google OIDC with account linking.
 - Cookie sessions, role guards, Next.js auth pages.
 - **Exit:** both signup paths work on staging; integration tests cover linking and token rotation.
+
+**M1 status (2026-10-07):**
+- [x] Email/password register + login (Argon2), per-account lockout, timing-safe unknown-user path
+- [x] Rotating refresh tokens with reuse detection (family revocation, 30s multi-tab grace)
+- [x] httpOnly cookie sessions; Origin check on state-changing requests; open-redirect guard
+- [x] Email verification + password reset; tokens minted in the worker (never in Pub/Sub)
+- [x] Google OIDC (PKCE + nonce + signed state cookie) with safe account linking
+  (unverified password accounts are reclaimed, not merged — pre-account-takeover protection)
+- [x] One-time role choice for Google sign-ups (`PUT /me/role`)
+- [x] Next.js: login, register (role cards), forgot/reset, verify-email, onboarding, dashboard;
+  `proxy.ts` renews expired sessions via `GET /auth/session/renew`
+- [x] 47 backend tests; browser-verified register → verify email → sign out → sign in locally
+- [ ] Create Google OAuth clients (local + staging) — see infra/README.md
+- [ ] Staging exit check once M0 infra is applied
+
+**Design notes**
+- The refresh cookie is scoped to `/api/auth`, so page requests can't see it; protected pages
+  without an access cookie bounce through `/api/auth/session/renew?next=…`.
+- Admins are never self-assigned; an admin bootstrap command lands with the M2 admin queue.
 
 ### M2 — Profiles & levels / R2 (week 5)
 - Role selection, onboarding wizards, NTRP questionnaire, photo upload (GCS signed URLs).

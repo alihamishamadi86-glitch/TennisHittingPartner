@@ -18,13 +18,16 @@ dependencies = [
     "google-cloud-pubsub>=2.27",
     "google-auth>=2.36",
     "requests>=2.32",
+    "httpx>=0.28",
+    "argon2-cffi>=23.1",
+    "pyjwt>=2.10",
+    "email-validator>=2.2",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
-    "httpx>=0.28",
     "ruff>=0.8",
     "mypy>=1.13",
 ]
@@ -45,6 +48,7 @@ known-third-party = ["alembic"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S"]
+"app/services/email_templates.py" = ["E501"]  # inline-styled HTML email markup
 
 [tool.mypy]
 python_version = "3.13"
