@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # A discovery stuck in pending/running longer than this is re-queued on the next request.
 STUCK_AFTER = timedelta(minutes=15)
 MAX_PARTNER_CLUBS = 20
+GEOCODER_RETRY_DELAY_S = 1.0
 
 
 class CityNotFoundError(Exception):
@@ -83,6 +84,11 @@ async def request_discovery(
 
     if existing is None:
         geocoded = await geocoder.geocode_city(city, region, country_code)
+        if geocoded is None and region:
+            # The region is free text and often wrong for the geocoder (a postcode, an
+            # abbreviation it doesn't know); fall back to city + country.
+            await asyncio.sleep(GEOCODER_RETRY_DELAY_S)  # Nominatim allows 1 request/second
+            geocoded = await geocoder.geocode_city(city, None, country_code)
         if geocoded is None:
             raise CityNotFoundError
         existing, created = await _get_or_create_city(session, geocoded)

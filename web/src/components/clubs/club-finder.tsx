@@ -151,7 +151,7 @@ export function ClubFinder({
     <div className="flex flex-col gap-5">
       <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
         <Field id="city" label="City" value={location.city} onChange={(e) => setLocation({ ...location, city: e.target.value })} required />
-        <Field id="region" label="State" value={location.region} onChange={(e) => setLocation({ ...location, region: e.target.value })} />
+        <Field id="region" label="State / region (optional)" value={location.region} onChange={(e) => setLocation({ ...location, region: e.target.value })} />
         <Select id="country_code" label="Country" options={COUNTRIES} value={location.country_code} onChange={(e) => setLocation({ ...location, country_code: e.target.value })} />
         <Button type="submit" disabled={searching || !location.city.trim()}>
           {searching ? "Searching…" : "Find courts"}

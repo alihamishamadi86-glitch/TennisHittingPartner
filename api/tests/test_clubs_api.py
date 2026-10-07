@@ -30,14 +30,17 @@ AUSTIN = GeocodedCity(
 
 class FakeGeocoder:
     def __init__(self) -> None:
-        self.calls = 0
+        self.calls: list[tuple[str, str | None, str]] = []
         self.result: GeocodedCity | None = AUSTIN
         self.error: Exception | None = None
+        self.unknown_regions: set[str] = set()
 
     async def geocode_city(self, city: str, region: str | None, country_code: str):  # type: ignore[no-untyped-def]
-        self.calls += 1
+        self.calls.append((city, region, country_code))
         if self.error:
             raise self.error
+        if region in self.unknown_regions:
+            return None
         return self.result
 
 
@@ -123,7 +126,7 @@ async def test_repeat_lookup_uses_cache(
 
     assert again.status_code == 200
     assert again.json()["status"] == "ready"
-    assert geocoder.calls == 1
+    assert len(geocoder.calls) == 1
     assert publisher.messages == []
 
 
@@ -137,7 +140,7 @@ async def test_different_spelling_resolving_to_same_city_reuses_it(
     second = await discover(client, region="Texas")
 
     assert second.json()["id"] == first["id"]
-    assert geocoder.calls == 2  # new alias needs one geocode, then it's cached
+    assert len(geocoder.calls) == 2  # new alias needs one geocode, then it's cached
     assert publisher.messages == []
 
 
@@ -160,6 +163,19 @@ async def test_clubs_near_point_sorted_by_distance(
     assert names[0][1] < names[1][1]
     assert [c["name"] for c in tight.json()] == ["Tennis courts"]
     assert (await client.get("/clubs")).status_code == 422
+
+
+async def test_unmatched_region_falls_back_to_city_and_country(
+    make_client: MakeClient, geocoder: FakeGeocoder, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("app.services.clubs.GEOCODER_RETRY_DELAY_S", 0)
+    client = await make_client("client")
+    geocoder.unknown_regions = {"46013"}  # a postcode typed into the region field
+
+    response = await discover(client, city="Valencia", region="46013")
+
+    assert response.status_code == 202
+    assert [region for _, region, _ in geocoder.calls] == ["46013", None]
 
 
 async def test_discovery_requires_sign_in(api_client: AsyncClient, geocoder) -> None:
