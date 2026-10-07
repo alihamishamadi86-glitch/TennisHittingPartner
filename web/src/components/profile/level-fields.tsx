@@ -17,6 +17,7 @@ export type LevelState = {
   play_style: PlayStyle | "";
   city: string;
   region: string;
+  postal_code: string;
   country_code: string;
 };
 
@@ -28,6 +29,7 @@ type LevelInitial = Partial<{
   play_style: PlayStyle | null;
   city: string;
   region: string | null;
+  postal_code: string | null;
   country_code: string;
 }>;
 
@@ -40,6 +42,7 @@ export function useLevelState(initial: LevelInitial | null) {
     play_style: initial?.play_style ?? "",
     city: initial?.city ?? "",
     region: initial?.region ?? "",
+    postal_code: initial?.postal_code ?? "",
     country_code: initial?.country_code ?? "US",
   });
 }
@@ -54,6 +57,7 @@ export function levelPayload(state: LevelState) {
     play_style: state.play_style || null,
     city: state.city.trim(),
     region: state.region.trim() || null,
+    postal_code: state.postal_code.trim() || null,
     country_code: state.country_code,
   };
 }
@@ -121,6 +125,14 @@ export function LocationFields({ state, setState }: Props) {
         autoComplete="address-level1"
         value={state.region}
         onChange={(e) => set("region", e.target.value)}
+      />
+      <Field
+        id="postal_code"
+        label="Postal code (optional)"
+        autoComplete="postal-code"
+        hint="Helps us show the closest courts first."
+        value={state.postal_code}
+        onChange={(e) => set("postal_code", e.target.value)}
       />
       <Select id="country_code" label="Country" options={COUNTRIES} value={state.country_code} onChange={(e) => set("country_code", e.target.value)} />
     </div>

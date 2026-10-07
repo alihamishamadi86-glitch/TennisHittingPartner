@@ -16,7 +16,7 @@ from app.core.config import get_settings
 from app.events.catalog import CLUBS_DISCOVERY_REQUESTED
 from app.events.outbox import record_event
 from app.integrations.geo import BBox, GeocodedCity, Geocoder, GeoProviderError, PlaceSource
-from app.models import City, CityAlias, Club, DiscoveryStatus, PartnerClub, User
+from app.models import City, CityAlias, Club, DiscoveryStatus, PartnerClub, PostalCode, User
 from app.services.club_merge import Site, build_sites
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,10 @@ class CityNotFoundError(Exception):
 
 
 class UnknownClubError(Exception):
+    pass
+
+
+class PostcodeNotFoundError(Exception):
     pass
 
 
@@ -76,13 +80,20 @@ async def request_discovery(
     region: str | None,
     country_code: str,
     force: bool = False,
+    pause_before_geocode: bool = False,
 ) -> City:
-    """Resolve the city (cached) and queue club discovery if it's new or stale."""
+    """Resolve the city (cached) and queue club discovery if it's new or stale.
+
+    `pause_before_geocode`: the caller just made a geocoder request (e.g. for a postcode), so
+    wait before another one — Nominatim allows 1 request/second.
+    """
     alias_key = city_key(city, region, country_code)
     alias = await session.get(CityAlias, alias_key)
     existing = await session.get(City, alias.city_id) if alias else None
 
     if existing is None:
+        if pause_before_geocode:
+            await asyncio.sleep(GEOCODER_RETRY_DELAY_S)
         geocoded = await geocoder.geocode_city(city, region, country_code)
         if geocoded is None and region:
             # The region is free text and often wrong for the geocoder (a postcode, an
@@ -129,6 +140,34 @@ async def _get_or_create_city(session: AsyncSession, geocoded: GeocodedCity) -> 
     session.add(city)
     await session.flush()
     return city, True
+
+
+def normalize_postcode(postal_code: str) -> str:
+    return re.sub(r"\s+", " ", postal_code.strip().upper())
+
+
+async def resolve_postcode(
+    session: AsyncSession, geocoder: Geocoder, postal_code: str, country_code: str
+) -> tuple[PostalCode, bool]:
+    """Geocode a postal code (cached). Returns (postcode, freshly_geocoded)."""
+    code = normalize_postcode(postal_code)
+    cached = await session.get(PostalCode, (country_code, code))
+    if cached is not None:
+        return cached, False
+    geocoded = await geocoder.geocode_postcode(code, country_code)
+    if geocoded is None:
+        raise PostcodeNotFoundError
+    postcode = PostalCode(
+        country_code=country_code,
+        postal_code=code,
+        lat=geocoded.lat,
+        lon=geocoded.lon,
+        city_name=geocoded.city,
+        region=geocoded.region,
+    )
+    session.add(postcode)
+    await session.flush()
+    return postcode, True
 
 
 # --- Worker side ------------------------------------------------------------------------

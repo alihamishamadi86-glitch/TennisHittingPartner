@@ -12,6 +12,8 @@ from app.schemas.clubs import (
     CityDiscoverIn,
     CityOut,
     ClubOut,
+    DiscoveryOut,
+    FocusOut,
     PartnerClubsIn,
     PartnerClubsOut,
 )
@@ -37,27 +39,51 @@ async def discover_city(
     _: CurrentUser,  # signed-in users only: lookups spend provider quota
     session: SessionDep,
     geocoder: GeocoderDep,
-) -> CityOut:
-    """Find (or start finding) tennis clubs and courts in a city. Poll GET /cities/{id} until
-    `status` is `ready`."""
+) -> DiscoveryOut:
+    """Find (or start finding) tennis clubs and courts in a city. With a postal code, results
+    are focused around it (its city is discovered). Poll GET /cities/{id} until `status` is
+    `ready`, then list clubs near `focus` or in the city."""
+    city_name, region, focus = body.city, body.region, None
     try:
+        geocoded_now = False
+        if body.postal_code:
+            postcode, geocoded_now = await club_service.resolve_postcode(
+                session, geocoder, body.postal_code, body.country_code
+            )
+            focus = postcode
+            if postcode.city_name:  # the postcode's own city is more reliable than free text
+                city_name, region = postcode.city_name, postcode.region
+        if not city_name:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, "We couldn't tell which city that postal code is in"
+            )
         city = await club_service.request_discovery(
             session,
             geocoder,
-            city=body.city,
-            region=body.region,
+            city=city_name,
+            region=region,
             country_code=body.country_code,
+            pause_before_geocode=geocoded_now,
         )
+    except club_service.PostcodeNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "We couldn't find that postal code") from exc
     except club_service.CityNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "We couldn't find that city") from exc
     except GeoProviderError as exc:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "Location search is unavailable right now"
         ) from exc
+    if focus is not None:
+        focus.city_id = city.id
     await commit_and_publish(session)
     if city.status is not DiscoveryStatus.READY:
         response.status_code = status.HTTP_202_ACCEPTED
-    return CityOut.model_validate(city)
+    return DiscoveryOut(
+        city=CityOut.model_validate(city),
+        focus=FocusOut(postal_code=focus.postal_code, lat=focus.lat, lon=focus.lon)
+        if focus
+        else None,
+    )
 
 
 @router.get("/cities/{city_id}")

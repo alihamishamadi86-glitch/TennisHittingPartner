@@ -80,6 +80,23 @@ class CityAlias(Base):
     )
 
 
+class PostalCode(Base):
+    """Geocoded postal code (cached): a focus point for sorting nearby courts."""
+
+    __tablename__ = "postal_codes"
+
+    country_code: Mapped[str] = mapped_column(String(2), primary_key=True)
+    postal_code: Mapped[str] = mapped_column(String(12), primary_key=True)
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lon: Mapped[float] = mapped_column(Float, nullable=False)
+    city_name: Mapped[str | None] = mapped_column(String(120))
+    region: Mapped[str | None] = mapped_column(String(120))
+    city_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cities.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class Club(TimestampMixin, Base):
     """A place to play tennis: a club, a sports centre, or a group of public courts."""
 

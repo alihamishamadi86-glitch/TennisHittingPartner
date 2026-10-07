@@ -53,6 +53,16 @@ class GeocodedCity:
 
 
 @dataclass(frozen=True)
+class GeocodedPostcode:
+    postal_code: str
+    country_code: str
+    lat: float
+    lon: float
+    city: str | None
+    region: str | None
+
+
+@dataclass(frozen=True)
 class RawPlace:
     source: str  # "osm" | "geoapify"
     source_id: str  # e.g. "way/123" for OSM
@@ -110,6 +120,10 @@ class Geocoder(Protocol):
         self, city: str, region: str | None, country_code: str
     ) -> GeocodedCity | None: ...
 
+    async def geocode_postcode(
+        self, postal_code: str, country_code: str
+    ) -> GeocodedPostcode | None: ...
+
 
 class GeoapifyGeocoder:
     def __init__(self, api_key: str) -> None:
@@ -155,6 +169,36 @@ class GeoapifyGeocoder:
             place_id=top.get("place_id"),
         )
 
+    async def geocode_postcode(
+        self, postal_code: str, country_code: str
+    ) -> GeocodedPostcode | None:
+        async with _http() as client:
+            body = await _get_json(
+                client,
+                GEOAPIFY_GEOCODE_URL,
+                params={
+                    "text": postal_code,
+                    "type": "postcode",
+                    "filter": f"countrycode:{country_code.lower()}",
+                    "format": "json",
+                    "limit": 1,
+                    "lang": "en",
+                    "apiKey": self._key,
+                },
+            )
+        results = body.get("results") or []
+        if not results:
+            return None
+        top = results[0]
+        return GeocodedPostcode(
+            postal_code=postal_code,
+            country_code=country_code.upper(),
+            lat=float(top["lat"]),
+            lon=float(top["lon"]),
+            city=top.get("city"),
+            region=top.get("state_code") or top.get("state"),
+        )
+
 
 class NominatimGeocoder:
     """Free OSM geocoder. Usage policy: ≤1 request/second with an identifying User-Agent —
@@ -197,6 +241,38 @@ class NominatimGeocoder:
             bbox=_bbox_or_radius([south, west, north, east], lat, lon),
             provider="nominatim",
             place_id=f"{top.get('osm_type')}/{top.get('osm_id')}",
+        )
+
+    async def geocode_postcode(
+        self, postal_code: str, country_code: str
+    ) -> GeocodedPostcode | None:
+        async with _http() as client:
+            results = await _get_json(
+                client,
+                f"{self._base}/search",
+                params={
+                    "postalcode": postal_code,
+                    "countrycodes": country_code.lower(),
+                    "format": "jsonv2",
+                    "addressdetails": 1,
+                    "limit": 1,
+                    "accept-language": "en",
+                },
+            )
+        if not results:
+            return None
+        top = results[0]
+        address = top.get("address", {})
+        return GeocodedPostcode(
+            postal_code=postal_code,
+            country_code=country_code.upper(),
+            lat=float(top["lat"]),
+            lon=float(top["lon"]),
+            city=address.get("city")
+            or address.get("town")
+            or address.get("village")
+            or address.get("municipality"),
+            region=address.get("state"),
         )
 
 

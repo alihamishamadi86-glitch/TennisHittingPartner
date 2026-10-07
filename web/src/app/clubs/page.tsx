@@ -23,10 +23,11 @@ export default async function ClubsPage() {
   let partnerClubIds: string[] | undefined;
   if (user.role === "client") {
     const { data } = await api.GET("/me/client-profile");
-    if (data) location = { city: data.city, region: data.region ?? "", country_code: data.country_code };
+    if (data) location = { city: data.city, region: data.region ?? "", postal_code: data.postal_code ?? "", country_code: data.country_code };
   } else if (user.role === "partner") {
     const [{ data: profile }, { data: picks }] = await Promise.all([api.GET("/me/partner-profile"), api.GET("/me/partner-clubs")]);
-    if (profile) location = { city: profile.city, region: profile.region ?? "", country_code: profile.country_code };
+    if (profile)
+      location = { city: profile.city, region: profile.region ?? "", postal_code: profile.postal_code ?? "", country_code: profile.country_code };
     partnerClubIds = picks?.club_ids ?? [];
   }
 

@@ -35,7 +35,13 @@ class LevelFields(BaseModel):
     play_style: PlayStyle | None = None
     city: str = Field(min_length=1, max_length=120)
     region: str | None = Field(default=None, max_length=120)
+    postal_code: str | None = Field(default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9 -]{1,11}$")
     country_code: str = Field(default="US", pattern=r"^[A-Z]{2}$")
+
+    @field_validator("postal_code", mode="before")
+    @classmethod
+    def _normalize_postcode(cls, value: object) -> object:
+        return " ".join(value.upper().split()) or None if isinstance(value, str) else value
 
     @field_validator("city", "region")
     @classmethod

@@ -1,5 +1,13 @@
 from app.models.base import Base
-from app.models.club import City, CityAlias, Club, ClubKind, DiscoveryStatus, PartnerClub
+from app.models.club import (
+    City,
+    CityAlias,
+    Club,
+    ClubKind,
+    DiscoveryStatus,
+    PartnerClub,
+    PostalCode,
+)
 from app.models.events import OutboxEvent, ProcessedEvent
 from app.models.profile import (
     ClientGoal,
@@ -41,6 +49,7 @@ __all__ = [
     "PartnerStatus",
     "PartnerVerification",
     "PlayStyle",
+    "PostalCode",
     "ProcessedEvent",
     "RefreshToken",
     "SystemPing",

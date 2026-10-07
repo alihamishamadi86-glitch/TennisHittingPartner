@@ -68,6 +68,16 @@ async def test_client_profile_round_trip(make_client: MakeClient) -> None:
     assert (await client.get("/me")).json()["profile_complete"] is True
 
 
+async def test_profile_postal_code_is_normalized(make_client: MakeClient) -> None:
+    client = await make_client("client")
+    saved = await client.put(
+        "/me/client-profile",
+        json={**CLIENT_PROFILE, "country_code": "GB", "postal_code": " sw1a  1aa"},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["postal_code"] == "SW1A 1AA"
+
+
 async def test_client_profile_can_be_updated(make_client: MakeClient) -> None:
     client = await make_client("client")
     await client.put("/me/client-profile", json=CLIENT_PROFILE)

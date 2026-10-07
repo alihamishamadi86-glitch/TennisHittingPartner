@@ -246,3 +246,38 @@ async def test_landmark_failure_does_not_fail_discovery(monkeypatch: pytest.Monk
     )
     places = await OverpassSource(["https://ok.example/api"]).fetch(BOX)
     assert [p.source_id for p in places] == ["node/1"]
+
+
+async def test_nominatim_geocodes_postcode(respond) -> None:
+    seen = respond(
+        [
+            {
+                "lat": "39.4464830",
+                "lon": "-0.3597425",
+                "address": {
+                    "postcode": "46013",
+                    "city": "Valencia",
+                    "state": "Valencian Community",
+                },
+            }
+        ]
+    )
+
+    found = await NominatimGeocoder("https://n.example").geocode_postcode("46013", "ES")
+
+    assert found is not None
+    assert (found.city, found.region, found.lat) == ("Valencia", "Valencian Community", 39.446483)
+    assert seen[0].url.params["postalcode"] == "46013"
+    assert seen[0].url.params["countrycodes"] == "es"
+
+
+async def test_geoapify_geocodes_postcode(respond) -> None:
+    seen = respond(
+        {"results": [{"lat": 51.501, "lon": -0.141, "city": "London", "state": "England"}]}
+    )
+
+    found = await GeoapifyGeocoder("key").geocode_postcode("SW1A 1AA", "GB")
+
+    assert found is not None
+    assert (found.city, found.country_code) == ("London", "GB")
+    assert seen[0].url.params["type"] == "postcode"

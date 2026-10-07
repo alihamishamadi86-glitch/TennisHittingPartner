@@ -72,6 +72,7 @@ class LevelMixin:
     play_style: Mapped[PlayStyle | None] = mapped_column(_enum(PlayStyle, "play_style"))
     city: Mapped[str] = mapped_column(String(120), nullable=False)
     region: Mapped[str | None] = mapped_column(String(120))  # state / province
+    postal_code: Mapped[str | None] = mapped_column(String(12))
     country_code: Mapped[str] = mapped_column(String(2), nullable=False, default="US")
 
 

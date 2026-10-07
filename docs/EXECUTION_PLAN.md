@@ -298,6 +298,11 @@ TennisHittingPartner/
   tick "I play here"; dashboard steps link to it
 - [x] 126 backend tests; live run on Austin, TX found 296 sites / ~770 courts
 
+**Postal codes (2026-10-08):** an optional postal code on searches and profiles. It is geocoded
+once (cached in `postal_codes`), its city is discovered, and clubs are listed by distance
+around it (2–25 km, across city limits). If the free-text region doesn't geocode, discovery
+retries with city + country.
+
 **Production notes**
 - Public Overpass instances were intermittently overloaded during testing (504s). Discovery
   is low-volume (one query per city per month), but for launch either add a Geoapify key

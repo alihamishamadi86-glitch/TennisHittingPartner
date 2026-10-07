@@ -10,7 +10,14 @@ from app.core.db import get_sessionmaker
 from app.events.envelope import EventEnvelope
 from app.events.publisher import InMemoryPublisher
 from app.events.registry import dispatch
-from app.integrations.geo import BBox, GeocodedCity, GeoProviderError, RawPlace, get_geocoder
+from app.integrations.geo import (
+    BBox,
+    GeocodedCity,
+    GeocodedPostcode,
+    GeoProviderError,
+    RawPlace,
+    get_geocoder,
+)
 from app.models import City
 from tests.test_club_merge import BASE_LAT, BASE_LON, court, facility
 from tests.test_profiles import PARTNER_PROFILE
@@ -34,6 +41,11 @@ class FakeGeocoder:
         self.result: GeocodedCity | None = AUSTIN
         self.error: Exception | None = None
         self.unknown_regions: set[str] = set()
+        self.postcodes: dict[str, GeocodedPostcode] = {
+            # ~2.2 km north of downtown, next to the northern public courts in PLACES
+            "78751": GeocodedPostcode("78751", "US", BASE_LAT + 0.02, BASE_LON, "Austin", "TX"),
+            "00000": GeocodedPostcode("00000", "US", 1.0, 1.0, None, None),
+        }
 
     async def geocode_city(self, city: str, region: str | None, country_code: str):  # type: ignore[no-untyped-def]
         self.calls.append((city, region, country_code))
@@ -42,6 +54,12 @@ class FakeGeocoder:
         if region in self.unknown_regions:
             return None
         return self.result
+
+    async def geocode_postcode(self, postal_code: str, country_code: str):  # type: ignore[no-untyped-def]
+        self.calls.append(("postcode", postal_code, country_code))
+        if self.error:
+            raise self.error
+        return self.postcodes.get(postal_code)
 
 
 class FakeSource:
@@ -80,9 +98,15 @@ def sources(monkeypatch: pytest.MonkeyPatch) -> list[FakeSource]:
     return fakes
 
 
-async def discover(client: AsyncClient, city: str = "austin", region: str = "tx"):  # type: ignore[no-untyped-def]
+async def discover(  # type: ignore[no-untyped-def]
+    client: AsyncClient,
+    city: str | None = "austin",
+    region: str | None = "tx",
+    postal_code: str | None = None,
+):
     return await client.post(
-        "/cities/discover", json={"city": city, "region": region, "country_code": "US"}
+        "/cities/discover",
+        json={"city": city, "region": region, "postal_code": postal_code, "country_code": "US"},
     )
 
 
@@ -100,7 +124,7 @@ async def test_discovery_finds_and_groups_clubs(
     queued = await discover(client)
 
     assert queued.status_code == 202
-    city = queued.json()
+    city = queued.json()["city"]
     assert (city["name"], city["status"]) == ("Austin", "pending")
     assert await deliver() == ["clubs.discovery.requested"]
 
@@ -125,7 +149,7 @@ async def test_repeat_lookup_uses_cache(
     again = await discover(client, city="Austin", region="TX")  # same normalized alias
 
     assert again.status_code == 200
-    assert again.json()["status"] == "ready"
+    assert again.json()["city"]["status"] == "ready"
     assert len(geocoder.calls) == 1
     assert publisher.messages == []
 
@@ -134,12 +158,12 @@ async def test_different_spelling_resolving_to_same_city_reuses_it(
     make_client: MakeClient, geocoder: FakeGeocoder, sources, deliver, publisher
 ) -> None:
     client = await make_client("client")
-    first = (await discover(client, region="tx")).json()
+    first = (await discover(client, region="tx")).json()["city"]
     await deliver()
 
     second = await discover(client, region="Texas")
 
-    assert second.json()["id"] == first["id"]
+    assert second.json()["city"]["id"] == first["id"]
     assert len(geocoder.calls) == 2  # new alias needs one geocode, then it's cached
     assert publisher.messages == []
 
@@ -178,6 +202,61 @@ async def test_unmatched_region_falls_back_to_city_and_country(
     assert [region for _, region, _ in geocoder.calls] == ["46013", None]
 
 
+async def test_postal_code_focuses_results_and_picks_its_city(
+    make_client: MakeClient, geocoder: FakeGeocoder, sources, deliver, monkeypatch
+) -> None:
+    monkeypatch.setattr("app.services.clubs.GEOCODER_RETRY_DELAY_S", 0)
+    client = await make_client("client")
+
+    response = await discover(client, city=None, region=None, postal_code=" 78751 ")
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["city"]["name"] == "Austin"
+    assert body["focus"] == {"postal_code": "78751", "lat": BASE_LAT + 0.02, "lon": BASE_LON}
+    assert geocoder.calls[0] == ("postcode", "78751", "US")
+    assert geocoder.calls[1] == ("Austin", "TX", "US")  # the postcode's city, not free text
+    await deliver()
+
+    focus = body["focus"]
+    near = (
+        await client.get(
+            "/clubs", params={"lat": focus["lat"], "lon": focus["lon"], "radius_km": 2}
+        )
+    ).json()
+    assert [c["name"] for c in near] == ["Tennis courts"]
+    assert near[0]["distance_km"] < 0.5
+
+
+async def test_postal_codes_are_cached(
+    make_client: MakeClient, geocoder: FakeGeocoder, sources, deliver
+) -> None:
+    client = await make_client("client")
+    await discover(client, postal_code="78751")
+    await deliver()
+    calls = len(geocoder.calls)
+
+    again = await discover(client, postal_code="78751")
+
+    assert again.status_code == 200
+    assert again.json()["focus"]["postal_code"] == "78751"
+    assert len(geocoder.calls) == calls  # neither postcode nor city geocoded again
+
+
+async def test_postal_code_errors(make_client: MakeClient, geocoder: FakeGeocoder) -> None:
+    client = await make_client("client")
+    unknown = await discover(client, city=None, region=None, postal_code="99999")
+    no_city = await discover(client, city=None, region=None, postal_code="00000")
+    nothing = await discover(client, city=" ", region=None, postal_code=None)
+    malformed = await discover(client, postal_code="<script>")
+
+    assert unknown.status_code == 404
+    assert "postal code" in unknown.json()["detail"]
+    assert no_city.status_code == 404
+    assert nothing.status_code == 422
+    assert malformed.status_code == 422
+
+
 async def test_discovery_requires_sign_in(api_client: AsyncClient, geocoder) -> None:
     assert (await discover(api_client)).status_code == 401
 
@@ -195,7 +274,7 @@ async def test_partial_source_failure_still_succeeds(
 ) -> None:
     client = await make_client("client")
     sources[1].error = GeoProviderError("geoapify: HTTP 500")
-    city = (await discover(client)).json()
+    city = (await discover(client)).json()["city"]
     await deliver()
 
     async with get_sessionmaker()() as session:
@@ -212,7 +291,7 @@ async def test_total_failure_retries_then_fails(
     await deliver()
     for source in sources:
         source.error = GeoProviderError("down")
-    city = (await discover(client)).json()
+    city = (await discover(client)).json()["city"]
     message = publisher.messages[0]
 
     for attempt in range(1, get_settings().discovery_max_attempts):
@@ -230,7 +309,7 @@ async def test_total_failure_retries_then_fails(
     for source in sources:
         source.error = None
     retried = await discover(client)
-    assert retried.json()["status"] == "pending"
+    assert retried.json()["city"]["status"] == "pending"
     await deliver()
     assert (await client.get(f"/cities/{city['id']}")).json()["status"] == "ready"
 
@@ -239,7 +318,7 @@ async def test_rediscovery_updates_and_hides_vanished_clubs(
     make_client: MakeClient, geocoder, sources, deliver
 ) -> None:
     admin = await make_client("admin", admin=True)
-    city = (await discover(admin)).json()
+    city = (await discover(admin)).json()["city"]
     await deliver()
 
     sources[0].places = PLACES[:4]  # the northern courts disappeared from OSM
@@ -254,7 +333,7 @@ async def test_stale_cities_are_refreshed_by_scheduled_task(
     make_client: MakeClient, geocoder, sources, deliver, worker_client: AsyncClient
 ) -> None:
     client = await make_client("client")
-    city = (await discover(client)).json()
+    city = (await discover(client)).json()["city"]
     await deliver()
     async with get_sessionmaker()() as session:
         await session.execute(
@@ -274,7 +353,7 @@ async def test_stale_cities_are_refreshed_by_scheduled_task(
 
 async def test_partner_selects_clubs(make_client: MakeClient, geocoder, sources, deliver) -> None:
     partner = await make_client("partner")
-    city = (await discover(partner)).json()
+    city = (await discover(partner)).json()["city"]
     await deliver()
     club_ids = [
         c["id"] for c in (await partner.get("/clubs", params={"city_id": city["id"]})).json()

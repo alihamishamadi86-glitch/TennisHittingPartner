@@ -427,8 +427,9 @@ export interface paths {
         put?: never;
         /**
          * Discover City
-         * @description Find (or start finding) tennis clubs and courts in a city. Poll GET /cities/{id} until
-         *     `status` is `ready`.
+         * @description Find (or start finding) tennis clubs and courts in a city. With a postal code, results
+         *     are focused around it (its city is discovered). Poll GET /cities/{id} until `status` is
+         *     `ready`, then list clubs near `focus` or in the city.
          */
         post: operations["discover_city_cities_discover_post"];
         delete?: never;
@@ -585,12 +586,17 @@ export interface components {
             /** Google */
             google: boolean;
         };
-        /** CityDiscoverIn */
+        /**
+         * CityDiscoverIn
+         * @description A city, a postal code, or both. A postal code also focuses results around it.
+         */
         CityDiscoverIn: {
             /** City */
-            city: string;
+            city?: string | null;
             /** Region */
             region?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
             /**
              * Country Code
              * @default US
@@ -639,6 +645,8 @@ export interface components {
             city: string;
             /** Region */
             region?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
             /**
              * Country Code
              * @default US
@@ -661,6 +669,8 @@ export interface components {
             city: string;
             /** Region */
             region?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
             /**
              * Country Code
              * @default US
@@ -715,6 +725,11 @@ export interface components {
             /** Distance Km */
             distance_km?: number | null;
         };
+        /** DiscoveryOut */
+        DiscoveryOut: {
+            city: components["schemas"]["CityOut"];
+            focus?: components["schemas"]["FocusOut"] | null;
+        };
         /**
          * DiscoveryStatus
          * @enum {string}
@@ -725,6 +740,18 @@ export interface components {
          * @enum {string}
          */
         DominantHand: "right" | "left" | "ambidextrous";
+        /**
+         * FocusOut
+         * @description Where to centre results: the geocoded postal code.
+         */
+        FocusOut: {
+            /** Postal Code */
+            postal_code: string;
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
+        };
         /** ForgotPasswordIn */
         ForgotPasswordIn: {
             /**
@@ -867,6 +894,8 @@ export interface components {
             city: string;
             /** Region */
             region?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
             /**
              * Country Code
              * @default US
@@ -898,6 +927,8 @@ export interface components {
             city: string;
             /** Region */
             region?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
             /**
              * Country Code
              * @default US
@@ -1938,7 +1969,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CityOut"];
+                    "application/json": components["schemas"]["DiscoveryOut"];
                 };
             };
             /** @description Discovery queued */
@@ -1998,6 +2029,7 @@ export interface operations {
                 lon?: number | null;
                 radius_km?: number;
                 q?: string | null;
+                limit?: number;
             };
             header?: never;
             path?: never;

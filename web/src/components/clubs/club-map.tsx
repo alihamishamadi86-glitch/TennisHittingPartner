@@ -5,22 +5,21 @@ import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 
-import type { Club, MapTiles } from "@/lib/clubs/types";
+import type { Club, Focus, MapTiles } from "@/lib/clubs/types";
 
 const COLORS = { club: "#7c3aed", sports_centre: "#0284c7", public_courts: "#059669" } as const;
 
-function FitBounds({ clubs, center }: { clubs: Club[]; center: [number, number] }) {
+function FitBounds({ clubs, center, focus }: { clubs: Club[]; center: [number, number]; focus: Focus | null }) {
   const map = useMap();
   useEffect(() => {
-    if (clubs.length === 0) {
-      map.setView(center, 11);
+    const points = clubs.map((club) => [club.lat, club.lon] as [number, number]);
+    if (focus) points.push([focus.lat, focus.lon]);
+    if (points.length <= 1) {
+      map.setView(center, focus ? 13 : 11);
       return;
     }
-    map.fitBounds(
-      clubs.map((club) => [club.lat, club.lon] as [number, number]),
-      { padding: [24, 24], maxZoom: 15 },
-    );
-  }, [clubs, center, map]);
+    map.fitBounds(points, { padding: [24, 24], maxZoom: 15 });
+  }, [clubs, center, focus, map]);
   return null;
 }
 
@@ -48,12 +47,14 @@ function FocusSelected({ club }: { club: Club | undefined }) {
 export default function ClubMap({
   clubs,
   center,
+  focus,
   tiles,
   selectedId,
   onSelect,
 }: {
   clubs: Club[];
   center: [number, number];
+  focus: Focus | null;
   tiles: MapTiles;
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -63,8 +64,19 @@ export default function ClubMap({
     <MapContainer center={center} zoom={11} scrollWheelZoom className="h-full w-full" style={{ background: "#e5e7eb" }}>
       <TileLayer url={tiles.url} attribution={tiles.attribution} />
       <TrackSize />
-      <FitBounds clubs={clubs} center={center} />
+      <FitBounds clubs={clubs} center={center} focus={focus} />
       <FocusSelected club={selected} />
+      {focus && (
+        <CircleMarker
+          center={[focus.lat, focus.lon]}
+          radius={8}
+          pathOptions={{ color: "#18181b", weight: 3, fillColor: "#fbbf24", fillOpacity: 1 }}
+        >
+          <Tooltip direction="top" offset={[0, -6]} permanent>
+            {focus.postal_code}
+          </Tooltip>
+        </CircleMarker>
+      )}
       {clubs.map((club) => {
         const active = club.id === selectedId;
         return (

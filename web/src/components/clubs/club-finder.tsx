@@ -9,7 +9,7 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { apiBrowser } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/errors";
-import type { City, Club, ClubKind, MapTiles } from "@/lib/clubs/types";
+import type { City, Club, ClubKind, Focus, MapTiles } from "@/lib/clubs/types";
 import { COUNTRIES } from "@/lib/profile/labels";
 
 import { ClubCard } from "./club-card";
@@ -24,7 +24,9 @@ const POLL_MS = 2500;
 const POLL_LIMIT_MS = 3 * 60 * 1000;
 type KindFilter = "all" | "venues" | ClubKind;
 
-export type Location = { city: string; region: string; country_code: string };
+export type Location = { city: string; region: string; postal_code: string; country_code: string };
+
+const RADII_KM = [2, 5, 10, 25] as const;
 
 export function ClubFinder({
   initialLocation,
@@ -36,8 +38,12 @@ export function ClubFinder({
   /** Present for partners: the clubs they already play at. */
   partnerClubIds?: string[];
 }) {
-  const [location, setLocation] = useState<Location>(initialLocation ?? { city: "", region: "", country_code: "US" });
+  const [location, setLocation] = useState<Location>(
+    initialLocation ?? { city: "", region: "", postal_code: "", country_code: "US" },
+  );
   const [city, setCity] = useState<City | null>(null);
+  const [focus, setFocus] = useState<Focus | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number>(5);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [error, setError] = useState<string>();
   const [searching, setSearching] = useState(false);
@@ -47,9 +53,12 @@ export function ClubFinder({
   const [picked, setPicked] = useState<Set<string>>(new Set(partnerClubIds ?? []));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const searchToken = useRef(0);
+  const radiusRef = useRef(5); // read inside the async search without re-creating it
 
-  const loadClubs = useCallback(async (cityId: string) => {
-    const { data } = await apiBrowser.GET("/clubs", { params: { query: { city_id: cityId } } });
+  // With a postal code, list by distance around it (across city limits); otherwise the city.
+  const loadClubs = useCallback(async (cityId: string, around: Focus | null, radius: number) => {
+    const query = around ? { lat: around.lat, lon: around.lon, radius_km: radius } : { city_id: cityId };
+    const { data } = await apiBrowser.GET("/clubs", { params: { query } });
     setClubs(data ?? []);
   }, []);
 
@@ -60,17 +69,24 @@ export function ClubFinder({
       setError(undefined);
       setSelectedId(null);
       const { data, error } = await apiBrowser.POST("/cities/discover", {
-        body: { city: target.city.trim(), region: target.region.trim() || null, country_code: target.country_code },
+        body: {
+          city: target.city.trim() || null,
+          region: target.region.trim() || null,
+          postal_code: target.postal_code.trim() || null,
+          country_code: target.country_code,
+        },
       });
       if (!data) {
         setError(errorMessage(error));
         setSearching(false);
         return;
       }
-      let current = data;
+      let current = data.city;
+      const around = data.focus ?? null;
       setCity(current);
+      setFocus(around);
       // Show what we already have (e.g. during a refresh) while discovery runs.
-      if (current.club_count > 0) await loadClubs(current.id);
+      if (current.club_count > 0) await loadClubs(current.id, around, radiusRef.current);
 
       const started = Date.now();
       while (current.status === "pending" || current.status === "running") {
@@ -89,11 +105,17 @@ export function ClubFinder({
       if (current.status === "failed" && current.club_count === 0) {
         setError("We couldn't load courts for this city right now. Please try again later.");
       }
-      await loadClubs(current.id);
+      await loadClubs(current.id, around, radiusRef.current);
       setSearching(false);
     },
     [loadClubs],
   );
+
+  function changeRadius(km: number) {
+    setRadiusKm(km);
+    radiusRef.current = km;
+    if (city && focus) void loadClubs(city.id, focus, km);
+  }
 
   // Search the user's home city on arrival. Scheduled (not called inline) so state updates
   // happen outside the effect body, and StrictMode's double-mount cancels the duplicate.
@@ -141,19 +163,26 @@ export function ClubFinder({
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (location.city.trim()) void search(location);
+    if (location.city.trim() || location.postal_code.trim()) void search(location);
   }
 
-  const center: [number, number] = city ? [city.lat, city.lon] : [39.5, -98.35];
+  const center: [number, number] = focus ? [focus.lat, focus.lon] : city ? [city.lat, city.lon] : [39.5, -98.35];
   const isPartner = partnerClubIds !== undefined;
 
   return (
     <div className="flex flex-col gap-5">
-      <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
-        <Field id="city" label="City" value={location.city} onChange={(e) => setLocation({ ...location, city: e.target.value })} required />
+      <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1.2fr_1fr_1.2fr_auto] lg:items-end">
+        <Field id="city" label="City" value={location.city} onChange={(e) => setLocation({ ...location, city: e.target.value })} />
         <Field id="region" label="State / region (optional)" value={location.region} onChange={(e) => setLocation({ ...location, region: e.target.value })} />
+        <Field
+          id="postal_code"
+          label="Postal code"
+          autoComplete="postal-code"
+          value={location.postal_code}
+          onChange={(e) => setLocation({ ...location, postal_code: e.target.value })}
+        />
         <Select id="country_code" label="Country" options={COUNTRIES} value={location.country_code} onChange={(e) => setLocation({ ...location, country_code: e.target.value })} />
-        <Button type="submit" disabled={searching || !location.city.trim()}>
+        <Button type="submit" disabled={searching || (!location.city.trim() && !location.postal_code.trim())}>
           {searching ? "Searching…" : "Find courts"}
         </Button>
       </form>
@@ -170,8 +199,30 @@ export function ClubFinder({
           <div className="order-2 flex min-w-0 flex-col gap-3 lg:order-1">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                <strong className="text-zinc-900 dark:text-zinc-50">{visible.length}</strong> places in {city.name}
-                {city.region ? `, ${city.region}` : ""}
+                <strong className="text-zinc-900 dark:text-zinc-50">{visible.length}</strong> places{" "}
+                {focus ? (
+                  <>
+                    within{" "}
+                    <select
+                      aria-label="Distance"
+                      value={radiusKm}
+                      onChange={(e) => changeRadius(Number(e.target.value))}
+                      className="rounded-md border border-zinc-300 bg-white px-1 py-0.5 text-sm font-medium dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                      {RADII_KM.map((km) => (
+                        <option key={km} value={km}>
+                          {km} km
+                        </option>
+                      ))}
+                    </select>{" "}
+                    of {focus.postal_code}
+                  </>
+                ) : (
+                  <>
+                    in {city.name}
+                    {city.region ? `, ${city.region}` : ""}
+                  </>
+                )}
               </p>
               <div className="flex gap-2">
                 <input
@@ -225,7 +276,7 @@ export function ClubFinder({
             </p>
           </div>
           <div className="order-1 h-72 overflow-hidden rounded-xl border border-zinc-200 sm:h-96 lg:sticky lg:top-4 lg:order-2 lg:h-[70vh] dark:border-zinc-800">
-            <ClubMap clubs={visible} center={center} tiles={tiles} selectedId={selectedId} onSelect={select} />
+            <ClubMap clubs={visible} center={center} focus={focus} tiles={tiles} selectedId={selectedId} onSelect={select} />
           </div>
         </div>
       )}
