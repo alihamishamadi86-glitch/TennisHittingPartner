@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     environment: Environment = Environment.LOCAL
     log_level: str = "INFO"
 
-    database_url: str = "postgresql+asyncpg://thp:thp@localhost:5432/thp"
+    database_url: str = "postgresql+asyncpg://thp:thp@localhost:55432/thp"
     database_pool_size: int = 5
 
     # Pub/Sub. Locally the client library talks to the emulator when PUBSUB_EMULATOR_HOST is set.
@@ -72,6 +72,25 @@ class Settings(BaseSettings):
     local_storage_dir: str = ".media"
     gcs_bucket: str = ""
     max_photo_bytes: int = 5 * 1024 * 1024
+
+    # Club discovery. Geoapify (OSM-based, free tier) when a key is set; otherwise the free
+    # OSM services (Nominatim geocoding). Overpass is always the primary court source.
+    geoapify_api_key: SecretStr = SecretStr("")
+    # Public Overpass instances are often overloaded; they're tried in order. Point this at a
+    # self-hosted instance for production volume.
+    overpass_urls: list[str] = Field(
+        default_factory=lambda: [
+            "https://overpass-api.de/api/interpreter",
+            "https://overpass.private.coffee/api/interpreter",
+            "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+        ]
+    )
+    nominatim_url: str = "https://nominatim.openstreetmap.org"
+    # Identifies us to OSM services, as their usage policies require.
+    geo_user_agent: str = "TennisHittingPartner/0.1 (+https://github.com/tennis-hitting-partner)"
+    city_search_radius_km: float = 20.0
+    city_refresh_days: int = 30
+    discovery_max_attempts: int = 5
 
     # Minimum self-rated NTRP to apply as a hitting partner.
     min_partner_ntrp: float = 4.5

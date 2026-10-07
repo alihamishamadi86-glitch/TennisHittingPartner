@@ -31,6 +31,7 @@ variable "event_types" {
     "auth.password_reset_requested",
     "partner.application_submitted",
     "partner.verification_decided",
+    "clubs.discovery.requested",
   ]
 }
 

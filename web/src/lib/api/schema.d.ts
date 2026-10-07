@@ -416,6 +416,119 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cities/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discover City
+         * @description Find (or start finding) tennis clubs and courts in a city. Poll GET /cities/{id} until
+         *     `status` is `ready`.
+         */
+        post: operations["discover_city_cities_discover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cities/{city_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get City */
+        get: operations["get_city_cities__city_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clubs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Clubs
+         * @description Clubs in a city and/or near a point (sorted by distance when a point is given).
+         */
+        get: operations["list_clubs_clubs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clubs/{club_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Club */
+        get: operations["get_club_clubs__club_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/partner-clubs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Partner Clubs */
+        get: operations["get_partner_clubs_me_partner_clubs_get"];
+        /**
+         * Put Partner Clubs
+         * @description Replace the set of clubs this partner plays at.
+         */
+        put: operations["put_partner_clubs_me_partner_clubs_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cities/{city_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh City */
+        post: operations["refresh_city_admin_cities__city_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/system/ping": {
         parameters: {
             query?: never;
@@ -472,6 +585,41 @@ export interface components {
             /** Google */
             google: boolean;
         };
+        /** CityDiscoverIn */
+        CityDiscoverIn: {
+            /** City */
+            city: string;
+            /** Region */
+            region?: string | null;
+            /**
+             * Country Code
+             * @default US
+             */
+            country_code: string;
+        };
+        /** CityOut */
+        CityOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Region */
+            region: string | null;
+            /** Country Code */
+            country_code: string;
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
+            status: components["schemas"]["DiscoveryStatus"];
+            /** Club Count */
+            club_count: number;
+            /** Discovered At */
+            discovered_at: string | null;
+        };
         /**
          * ClientGoal
          * @enum {string}
@@ -526,6 +674,52 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * ClubKind
+         * @enum {string}
+         */
+        ClubKind: "club" | "sports_centre" | "public_courts";
+        /** ClubOut */
+        ClubOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * City Id
+             * Format: uuid
+             */
+            city_id: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["ClubKind"];
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
+            /** Address */
+            address: string | null;
+            /** Website */
+            website: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Court Count */
+            court_count: number | null;
+            /** Surface */
+            surface: string | null;
+            /** Access */
+            access: string | null;
+            /** Lit */
+            lit: boolean | null;
+            /** Distance Km */
+            distance_km?: number | null;
+        };
+        /**
+         * DiscoveryStatus
+         * @enum {string}
+         */
+        DiscoveryStatus: "pending" | "running" | "ready" | "failed";
         /**
          * DominantHand
          * @enum {string}
@@ -636,6 +830,18 @@ export interface components {
          * @enum {string}
          */
         PartnerBackground: "professional" | "college" | "high_school_varsity" | "club" | "coach" | "other";
+        /** PartnerClubsIn */
+        PartnerClubsIn: {
+            /** Club Ids */
+            club_ids: string[];
+        };
+        /** PartnerClubsOut */
+        PartnerClubsOut: {
+            /** Club Ids */
+            club_ids: string[];
+            /** Clubs */
+            clubs: components["schemas"]["ClubOut"][];
+        };
         /** PartnerDecisionIn */
         PartnerDecisionIn: {
             decision: components["schemas"]["AdminDecision"];
@@ -1696,6 +1902,252 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PartnerApplicationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discover_city_cities_discover_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CityDiscoverIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CityOut"];
+                };
+            };
+            /** @description Discovery queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_city_cities__city_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                city_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_clubs_clubs_get: {
+        parameters: {
+            query?: {
+                city_id?: string | null;
+                lat?: number | null;
+                lon?: number | null;
+                radius_km?: number;
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_club_clubs__club_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_partner_clubs_me_partner_clubs_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerClubsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_partner_clubs_me_partner_clubs_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartnerClubsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerClubsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_city_admin_cities__city_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                city_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CityOut"];
                 };
             };
             /** @description Validation Error */

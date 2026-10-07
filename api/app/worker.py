@@ -22,10 +22,12 @@ from app.core.middleware import trace_context_middleware
 from app.core.push_auth import verify_push_request
 from app.events import handlers  # noqa: F401  (import registers event handlers)
 from app.events.envelope import EventEnvelope
+from app.events.outbox import commit_and_publish
 from app.events.publisher import get_publisher
 from app.events.registry import dispatch
 from app.events.relay import relay_outbox
 from app.routers import health
+from app.services.clubs import queue_refresh, stale_cities
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +101,16 @@ def create_worker_app() -> FastAPI:
             get_sessionmaker(), get_publisher(), settings.outbox_relay_batch_size
         )
         return {"published": published}
+
+    @app.post("/tasks/refresh-cities", dependencies=[Depends(verify_push_request)])
+    async def refresh_cities() -> dict[str, int]:
+        """Daily (Cloud Scheduler): re-discover clubs for cities whose data is stale."""
+        async with get_sessionmaker()() as session:
+            cities = await stale_cities(session)
+            for city in cities:
+                queue_refresh(session, city)
+            await commit_and_publish(session)
+        return {"queued": len(cities)}
 
     return app
 

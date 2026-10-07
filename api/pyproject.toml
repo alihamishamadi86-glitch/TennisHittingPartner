@@ -23,6 +23,7 @@ dependencies = [
     "pyjwt>=2.10",
     "email-validator>=2.2",
     "google-cloud-storage>=2.18",
+    "geoalchemy2>=0.15",
 ]
 
 [project.optional-dependencies]

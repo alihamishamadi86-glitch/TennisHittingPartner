@@ -56,6 +56,17 @@ The OAuth client can't be created by Terraform; do it once per environment:
 
 Until `google_client_id` is set, the API reports Google as unavailable and the UI hides the button.
 
+## Club discovery (M3)
+
+Works with no keys (free OSM services). Optional, recommended for production:
+
+- **Geoapify key** (free tier, 3,000 credits/day): reliable geocoding plus a second court
+  source. `printf '%s' "$KEY" | gcloud secrets versions add geoapify-api-key --data-file=-`
+- **Overpass**: public instances are rate-limited and sometimes overloaded. For volume, run
+  the open-source server and set `OVERPASS_URLS='["https://your-overpass/api/interpreter"]'`.
+- **Map tiles**: set `MAP_TILE_URL` / `MAP_TILE_ATTRIBUTION` on the web service; OSM's own tile
+  server is not for production traffic.
+
 ## First admin
 
 Register the account in the web app, then promote it:

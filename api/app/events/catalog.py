@@ -12,6 +12,7 @@ EMAIL_VERIFICATION_REQUESTED = "auth.email_verification_requested"
 PASSWORD_RESET_REQUESTED = "auth.password_reset_requested"  # noqa: S105 (event name)
 PARTNER_APPLICATION_SUBMITTED = "partner.application_submitted"
 PARTNER_VERIFICATION_DECIDED = "partner.verification_decided"
+CLUBS_DISCOVERY_REQUESTED = "clubs.discovery.requested"
 
 EVENT_TYPES: tuple[str, ...] = (
     SYSTEM_PING,
@@ -20,6 +21,7 @@ EVENT_TYPES: tuple[str, ...] = (
     PASSWORD_RESET_REQUESTED,
     PARTNER_APPLICATION_SUBMITTED,
     PARTNER_VERIFICATION_DECIDED,
+    CLUBS_DISCOVERY_REQUESTED,
 )
 
 

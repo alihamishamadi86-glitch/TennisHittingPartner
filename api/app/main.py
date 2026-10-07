@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.core.csrf import origin_check_middleware
 from app.core.logging import configure_logging
 from app.core.middleware import trace_context_middleware
-from app.routers import admin, auth, dev_storage, health, levels, me, profiles, system
+from app.routers import admin, auth, clubs, dev_storage, health, levels, me, profiles, system
 
 
 def create_app() -> FastAPI:
@@ -31,6 +31,7 @@ def create_app() -> FastAPI:
     app.include_router(profiles.router)
     app.include_router(levels.router)
     app.include_router(admin.router)
+    app.include_router(clubs.router)
     if settings.storage_backend == "local":
         app.include_router(dev_storage.router)
     if settings.enable_system_ping:

@@ -13,7 +13,7 @@ Google Cloud (Cloud Run, Cloud SQL Postgres + PostGIS, Pub/Sub, Cloud Tasks).
 | M0 | Foundation & infrastructure | 🟡 Code complete — awaiting GCP staging apply |
 | M1 | Authentication (email/password + Google) | 🟡 Code complete — needs Google OAuth client per env |
 | M2 | Profiles & levels | ✅ Code complete |
-| M3 | Club discovery | ⬜ |
+| M3 | Club discovery | ✅ Code complete |
 | M4 | Availability & partner search | ⬜ |
 | M5 | Booking core | ⬜ |
 | M6 | Payments & policies | ⬜ |
@@ -274,6 +274,37 @@ TennisHittingPartner/
 - Geocode + Overpass + Places worker, dedupe, PostGIS storage, city cache, status polling.
 - Map/list UI; partners select clubs; Scheduler refresh.
 - **Exit:** new city populated in ≲30s; repeat lookup is instant.
+
+**M3 status (2026-10-07):** implemented with open data instead of Google Places (cost):
+
+| Need | Provider | Cost |
+|---|---|---|
+| Courts & clubs | OpenStreetMap via **Overpass** (`sport=tennis` pitches, centres, clubs) | Free |
+| Naming unnamed courts | Overpass: parks/schools within 200 m of courts + neighbourhoods | Free |
+| City geocoding | **Geoapify** (OSM-based) when keyed, else **Nominatim** | Free tier 3k/day · free |
+| Extra source + addresses | **Geoapify Places**, filtered to tennis (no tennis category) | ~1 credit / 20 places |
+| Map tiles | Leaflet + OSM tiles (dev); runtime-configurable for prod | Free (dev) |
+
+- [x] `cities` (+ input `city_aliases` so re-phrasings don't re-geocode), `clubs` (PostGIS
+  geography + GiST index), `partner_clubs`
+- [x] Worker pipeline: sources fetched concurrently, succeeds if any answers; merge by OSM id;
+  courts attached to venues (chaining through adjacent courts); remaining courts clustered;
+  duplicate venues collapsed; upsert by stable key; vanished clubs hidden, not deleted
+- [x] Resilience: Overpass mirror fallback, up to 5 attempts with Pub/Sub backoff, stale data
+  kept while a refresh runs/fails, daily refresh of cities older than 30 days
+- [x] API: `POST /cities/discover`, `GET /cities/{id}`, `GET /clubs` (city or lat/lon radius,
+  distance-sorted), `GET|PUT /me/partner-clubs`, `POST /admin/cities/{id}/refresh`
+- [x] Next.js `/clubs`: auto-searches the profile city, list + Leaflet map, filters; partners
+  tick "I play here"; dashboard steps link to it
+- [x] 126 backend tests; live run on Austin, TX found 296 sites / ~770 courts
+
+**Production notes**
+- Public Overpass instances were intermittently overloaded during testing (504s). Discovery
+  is low-volume (one query per city per month), but for launch either add a Geoapify key
+  (second court source; results still flow when Overpass is down) or self-host Overpass
+  (open source, `wiktorn/overpass-api` with a US extract) and set `OVERPASS_URLS`.
+- OSM's tile server is for development only; set `MAP_TILE_URL` (e.g. Geoapify/MapTiler tiles)
+  for production. Keep the OSM attribution (ODbL).
 
 ### M4 — Availability & partner search (week 8)
 - Availability rules/exceptions, slot engine (timezone/DST tests), search endpoint + UI.

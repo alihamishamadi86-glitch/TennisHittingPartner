@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.club import City, CityAlias, Club, ClubKind, DiscoveryStatus, PartnerClub
 from app.models.events import OutboxEvent, ProcessedEvent
 from app.models.profile import (
     ClientGoal,
@@ -23,13 +24,19 @@ from app.models.user import (
 __all__ = [
     "AuthIdentity",
     "Base",
+    "City",
+    "CityAlias",
     "ClientGoal",
     "ClientProfile",
+    "Club",
+    "ClubKind",
+    "DiscoveryStatus",
     "DominantHand",
     "EmailToken",
     "EmailTokenPurpose",
     "OutboxEvent",
     "PartnerBackground",
+    "PartnerClub",
     "PartnerProfile",
     "PartnerStatus",
     "PartnerVerification",

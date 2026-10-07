@@ -23,12 +23,16 @@ function clientSteps(user: User): StepItem[] {
       done: user.profile_complete,
       href: "/onboarding/profile",
     },
-    { title: "Find courts near you", body: "We'll list tennis clubs and public courts in your city." },
+    {
+      title: "Find courts near you",
+      body: "Tennis clubs, centres and public courts in your city.",
+      href: "/clubs",
+    },
     { title: "Book a hitting partner", body: "Pick a partner and an open slot that suits you." },
   ];
 }
 
-function partnerSteps(user: User, profile: PartnerProfile | null): StepItem[] {
+function partnerSteps(user: User, profile: PartnerProfile | null, clubCount: number): StepItem[] {
   const status = profile?.status ?? "draft";
   return [
     {
@@ -42,7 +46,13 @@ function partnerSteps(user: User, profile: PartnerProfile | null): StepItem[] {
       body: "We'll confirm your level with a short court screening.",
       done: status === "approved",
     },
-    { title: "Set your availability", body: "Choose the clubs and times you can play." },
+    {
+      title: "Choose your clubs",
+      body: clubCount ? `You play at ${clubCount} place${clubCount === 1 ? "" : "s"}.` : "Pick the clubs and courts you can play at.",
+      done: clubCount > 0,
+      href: "/clubs",
+    },
+    { title: "Set your availability", body: "Choose the times you can play — coming next." },
   ];
 }
 
@@ -50,9 +60,20 @@ export default async function DashboardPage() {
   const user = await requireUser("/dashboard");
   if (!user.role) redirect("/onboarding/role");
 
-  const partnerProfile =
-    user.role === "partner" ? ((await (await authedApi()).GET("/me/partner-profile")).data ?? null) : null;
-  const steps = user.role === "partner" ? partnerSteps(user, partnerProfile) : user.role === "client" ? clientSteps(user) : [];
+  const api = await authedApi();
+  const [partnerProfile, partnerClubs] =
+    user.role === "partner"
+      ? await Promise.all([
+          api.GET("/me/partner-profile").then((r) => r.data ?? null),
+          api.GET("/me/partner-clubs").then((r) => r.data?.club_ids.length ?? 0),
+        ])
+      : [null, 0];
+  const steps =
+    user.role === "partner"
+      ? partnerSteps(user, partnerProfile, partnerClubs)
+      : user.role === "client"
+        ? clientSteps(user)
+        : [];
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">

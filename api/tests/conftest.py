@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 os.environ.setdefault("ENVIRONMENT", "test")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://thp:thp@localhost:5432/thp_test")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://thp:thp@localhost:55432/thp_test")
 os.environ.setdefault("PUSH_AUTH_ENABLED", "false")
 # Tests call the API directly (not through the Next.js /api proxy), so scope cookies to /auth.
 os.environ["AUTH_COOKIE_PATH"] = "/auth"
@@ -49,7 +49,8 @@ async def clean_tables() -> AsyncIterator[None]:
             text(
                 "TRUNCATE outbox_events, processed_events, system_pings, users, auth_identities,"
                 " refresh_tokens, email_tokens, client_profiles, partner_profiles,"
-                " partner_verifications RESTART IDENTITY CASCADE"
+                " partner_verifications, cities, city_aliases, clubs, partner_clubs"
+                " RESTART IDENTITY CASCADE"
             )
         )
         await session.commit()

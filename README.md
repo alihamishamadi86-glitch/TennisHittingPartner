@@ -13,6 +13,9 @@ Platform that matches tennis players with vetted hitting partners.
 
 Prerequisites: Docker, Python 3.13, Node 20.
 
+Quickest path: `./run.sh` starts the backend stack, checks the event pipeline, and runs the web
+app on :3000 (`./run.sh down` stops the stack). Or step by step:
+
 ```bash
 make install     # api/.venv + web/node_modules
 make up          # postgis, pubsub emulator, mailpit, api (:8000), worker (:8001)

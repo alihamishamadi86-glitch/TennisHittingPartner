@@ -37,7 +37,7 @@ migrate: ## Apply migrations to the local dev db
 	docker compose run --rm migrate
 
 migration: $(VENV) ## Create a migration: make migration m="add users"
-	cd $(API) && DATABASE_URL=postgresql+asyncpg://thp:thp@localhost:5432/thp .venv/bin/alembic revision --autogenerate -m "$(m)"
+	cd $(API) && DATABASE_URL=postgresql+asyncpg://thp:thp@localhost:55432/thp .venv/bin/alembic revision --autogenerate -m "$(m)"
 
 smoke: ## End-to-end check: API -> outbox -> Pub/Sub emulator -> worker
 	./scripts/smoke_ping.sh http://localhost:8000
