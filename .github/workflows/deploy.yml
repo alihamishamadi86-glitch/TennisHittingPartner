@@ -41,6 +41,7 @@ jobs:
 
       - name: Build and push images
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/deploy.log") 2>&1
           REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/thp-images"
           echo "REGISTRY=$REGISTRY" >> "$GITHUB_ENV"
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
@@ -51,17 +52,27 @@ jobs:
 
       - name: Run database migrations
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/deploy.log") 2>&1
           gcloud run jobs update thp-migrate --region "$REGION" --image "$REGISTRY/api:$TAG"
           gcloud run jobs execute thp-migrate --region "$REGION" --wait
           gcloud run jobs update thp-manage --region "$REGION" --image "$REGISTRY/api:$TAG"
 
       - name: Deploy services
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/deploy.log") 2>&1
           gcloud run deploy thp-worker --region "$REGION" --image "$REGISTRY/api:$TAG"
           gcloud run deploy thp-api    --region "$REGION" --image "$REGISTRY/api:$TAG"
           gcloud run deploy thp-web    --region "$REGION" --image "$REGISTRY/web:$TAG"
 
       - name: Smoke test event pipeline
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/deploy.log") 2>&1
           API_URL=$(gcloud run services describe thp-api --region "$REGION" --format 'value(status.url)')
           ./scripts/smoke_ping.sh "$API_URL"
+
+      # Job logs require GitHub sign-in; annotations are readable through the public API.
+      - name: Report failure output
+        if: failure()
+        run: |
+          tail -n 40 "$RUNNER_TEMP/deploy.log" 2>/dev/null \
+            | python3 -c 'import sys; t=sys.stdin.read().replace("%","%25").replace("\r","%0D").replace("\n","%0A"); print(f"::error title=Deploy output::{t}")'
