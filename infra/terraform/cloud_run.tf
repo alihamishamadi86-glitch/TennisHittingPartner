@@ -102,11 +102,12 @@ resource "google_cloud_run_v2_service" "worker" {
     }
 
     containers {
-      image   = local.placeholder_image
-      command = ["sh", "-c", "exec uvicorn app.worker:app --host 0.0.0.0 --port $PORT"]
+      # Selected via env rather than `command` so the placeholder image can still boot.
+      image = local.placeholder_image
 
       dynamic "env" {
         for_each = merge(local.backend_env, {
+          APP_MODULE               = "app.worker:app"
           PUSH_AUTH_ENABLED        = "true"
           PUSH_AUTH_AUDIENCE       = local.run_url.worker
           PUSH_AUTH_ALLOWED_EMAILS = jsonencode([google_service_account.invoker.email])
