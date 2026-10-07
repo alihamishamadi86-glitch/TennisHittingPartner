@@ -8,7 +8,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# git doesn't track an empty public/, so make sure it exists for the runtime COPY.
+RUN mkdir -p public && npm run build
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
