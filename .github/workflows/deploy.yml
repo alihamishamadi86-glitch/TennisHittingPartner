@@ -1,8 +1,8 @@
 name: Deploy
 
-# Required GitHub configuration (Actions variables or secrets, repository or `staging` env):
-#   GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOYER_SA
-# Values come from `terraform output` (see infra/README.md).
+# Staging defaults come from `terraform output` (see infra/README.md). None of them are
+# sensitive; override with Actions variables (GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER,
+# GCP_DEPLOYER_SA) if the environment is rebuilt.
 
 on:
   push:
@@ -25,21 +25,24 @@ jobs:
       contents: read
       id-token: write
     env:
-      REGISTRY: ${{ vars.GCP_REGION || secrets.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}/thp-images
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'deft-idiom-510807-q8' }}
+      REGION: ${{ vars.GCP_REGION || 'us-central1' }}
       TAG: ${{ github.sha }}
-      REGION: ${{ vars.GCP_REGION || secrets.GCP_REGION }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER || secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOYER_SA || secrets.GCP_DEPLOYER_SA }}
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER || 'projects/1050136558690/locations/global/workloadIdentityPools/github/providers/github-oidc' }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA || 'thp-deployer@deft-idiom-510807-q8.iam.gserviceaccount.com' }}
 
       - uses: google-github-actions/setup-gcloud@v2
 
       - name: Build and push images
         run: |
+          REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/thp-images"
+          echo "REGISTRY=$REGISTRY" >> "$GITHUB_ENV"
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
           docker build -t "$REGISTRY/api:$TAG" api
           docker build -t "$REGISTRY/web:$TAG" web
