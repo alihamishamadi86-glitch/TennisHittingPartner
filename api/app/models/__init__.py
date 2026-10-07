@@ -1,3 +1,4 @@
+from app.models.availability import AvailabilityException, AvailabilityRule, ExceptionKind
 from app.models.base import Base
 from app.models.club import (
     City,
@@ -31,6 +32,8 @@ from app.models.user import (
 
 __all__ = [
     "AuthIdentity",
+    "AvailabilityException",
+    "AvailabilityRule",
     "Base",
     "City",
     "CityAlias",
@@ -42,6 +45,7 @@ __all__ = [
     "DominantHand",
     "EmailToken",
     "EmailTokenPurpose",
+    "ExceptionKind",
     "OutboxEvent",
     "PartnerBackground",
     "PartnerClub",

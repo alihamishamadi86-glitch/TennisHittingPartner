@@ -52,6 +52,7 @@ known-third-party = ["alembic"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S"]
 "app/services/email_templates.py" = ["E501"]  # inline-styled HTML email markup
+"alembic/versions/*" = ["E501"]  # generated DDL (long CHECK constraints)
 
 [tool.mypy]
 python_version = "3.13"

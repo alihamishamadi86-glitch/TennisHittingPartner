@@ -1,4 +1,5 @@
-from collections.abc import Awaitable, Callable, Iterator
+import asyncio
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -11,91 +12,14 @@ from app.events.envelope import EventEnvelope
 from app.events.publisher import InMemoryPublisher
 from app.events.registry import dispatch
 from app.integrations.geo import (
-    BBox,
-    GeocodedCity,
-    GeocodedPostcode,
     GeoProviderError,
-    RawPlace,
-    get_geocoder,
 )
 from app.models import City
-from tests.test_club_merge import BASE_LAT, BASE_LON, court, facility
+from tests.geo_fixtures import PLACES, FakeGeocoder
+from tests.test_club_merge import BASE_LAT, BASE_LON
 from tests.test_profiles import PARTNER_PROFILE
 
 MakeClient = Callable[..., Awaitable[AsyncClient]]
-
-AUSTIN = GeocodedCity(
-    name="Austin",
-    region="TX",
-    country_code="US",
-    lat=BASE_LAT,
-    lon=BASE_LON,
-    bbox=BBox.around(BASE_LAT, BASE_LON, 20),
-    provider="fake",
-)
-
-
-class FakeGeocoder:
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, str | None, str]] = []
-        self.result: GeocodedCity | None = AUSTIN
-        self.error: Exception | None = None
-        self.unknown_regions: set[str] = set()
-        self.postcodes: dict[str, GeocodedPostcode] = {
-            # ~2.2 km north of downtown, next to the northern public courts in PLACES
-            "78751": GeocodedPostcode("78751", "US", BASE_LAT + 0.02, BASE_LON, "Austin", "TX"),
-            "00000": GeocodedPostcode("00000", "US", 1.0, 1.0, None, None),
-        }
-
-    async def geocode_city(self, city: str, region: str | None, country_code: str):  # type: ignore[no-untyped-def]
-        self.calls.append((city, region, country_code))
-        if self.error:
-            raise self.error
-        if region in self.unknown_regions:
-            return None
-        return self.result
-
-    async def geocode_postcode(self, postal_code: str, country_code: str):  # type: ignore[no-untyped-def]
-        self.calls.append(("postcode", postal_code, country_code))
-        if self.error:
-            raise self.error
-        return self.postcodes.get(postal_code)
-
-
-class FakeSource:
-    def __init__(self, name: str, places: list[RawPlace]) -> None:
-        self.name = name
-        self.places = places
-        self.error: Exception | None = None
-
-    async def fetch(self, bbox: BBox) -> list[RawPlace]:
-        if self.error:
-            raise self.error
-        return self.places
-
-
-PLACES = [
-    facility(500, "Austin Tennis Center", club="sport"),
-    *[court(i, dlat=0.0002 * i) for i in range(1, 4)],
-    *[court(i, dlat=0.02 + 0.0002 * i) for i in range(10, 12)],  # ~2.2 km north
-]
-
-
-@pytest.fixture
-def geocoder() -> Iterator[FakeGeocoder]:
-    from app.main import app
-
-    fake = FakeGeocoder()
-    app.dependency_overrides[get_geocoder] = lambda: fake
-    yield fake
-    app.dependency_overrides.pop(get_geocoder, None)
-
-
-@pytest.fixture
-def sources(monkeypatch: pytest.MonkeyPatch) -> list[FakeSource]:
-    fakes = [FakeSource("osm", PLACES), FakeSource("geoapify", [])]
-    monkeypatch.setattr("app.events.handlers.clubs.get_place_sources", lambda: tuple(fakes))
-    return fakes
 
 
 async def discover(  # type: ignore[no-untyped-def]
@@ -226,6 +150,25 @@ async def test_postal_code_focuses_results_and_picks_its_city(
     ).json()
     assert [c["name"] for c in near] == ["Tennis courts"]
     assert near[0]["distance_km"] < 0.5
+
+
+async def test_concurrent_lookups_of_a_new_city_and_postcode_both_succeed(
+    make_client: MakeClient, geocoder: FakeGeocoder, monkeypatch, publisher
+) -> None:
+    """Regression: two simultaneous requests used to collide on the unique keys (500)."""
+    monkeypatch.setattr("app.services.clubs.GEOCODER_RETRY_DELAY_S", 0)
+    first = await make_client("client")
+    second = await make_client("client")
+    publisher.messages.clear()
+
+    a, b = await asyncio.gather(
+        discover(first, postal_code="78751"), discover(second, postal_code="78751")
+    )
+
+    assert {a.status_code, b.status_code} <= {200, 202}
+    assert a.json()["city"]["id"] == b.json()["city"]["id"]
+    queued = [m for m in publisher.messages if m[2]["event_type"] == "clubs.discovery.requested"]
+    assert len(queued) == 1  # discovery queued once
 
 
 async def test_postal_codes_are_cached(

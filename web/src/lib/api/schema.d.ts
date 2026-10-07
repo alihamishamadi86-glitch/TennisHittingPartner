@@ -530,6 +530,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Availability */
+        get: operations["get_my_availability_me_availability_get"];
+        /**
+         * Put My Availability
+         * @description Replace the weekly schedule (and set the timezone it's expressed in).
+         */
+        put: operations["put_my_availability_me_availability_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/availability/exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add My Exception */
+        post: operations["add_my_exception_me_availability_exceptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/availability/exceptions/{exception_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete My Exception */
+        delete: operations["delete_my_exception_me_availability_exceptions__exception_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/availability/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview My Slots
+         * @description What clients will see: bookable start times for the coming days.
+         */
+        get: operations["preview_my_slots_me_availability_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/partners/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Partners
+         * @description Approved partners who play near the point. With `date`, `slots` lists that day's
+         *     bookable start times; `next_slot` is the soonest one in the next two weeks.
+         */
+        get: operations["search_partners_partners_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/partners/{partner_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Partner */
+        get: operations["get_partner_partners__partner_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/partners/{partner_id}/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Partner Slots */
+        get: operations["get_partner_slots_partners__partner_id__slots_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/system/ping": {
         parameters: {
             query?: never;
@@ -585,6 +715,15 @@ export interface components {
             password: boolean;
             /** Google */
             google: boolean;
+        };
+        /** AvailabilityOut */
+        AvailabilityOut: {
+            /** Timezone */
+            timezone: string | null;
+            /** Windows */
+            windows: components["schemas"]["WeeklyWindowIn"][];
+            /** Exceptions */
+            exceptions: components["schemas"]["ExceptionOut"][];
         };
         /**
          * CityDiscoverIn
@@ -725,6 +864,28 @@ export interface components {
             /** Distance Km */
             distance_km?: number | null;
         };
+        /** ClubRefOut */
+        ClubRefOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Distance Km */
+            distance_km?: number | null;
+        };
+        /** DaySlotsOut */
+        DaySlotsOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Slots */
+            slots: string[];
+        };
         /** DiscoveryOut */
         DiscoveryOut: {
             city: components["schemas"]["CityOut"];
@@ -740,6 +901,52 @@ export interface components {
          * @enum {string}
          */
         DominantHand: "right" | "left" | "ambidextrous";
+        /** ExceptionIn */
+        ExceptionIn: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            kind: components["schemas"]["ExceptionKind"];
+            /** Start */
+            start?: string | null;
+            /** End */
+            end?: string | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
+        /**
+         * ExceptionKind
+         * @enum {string}
+         */
+        ExceptionKind: "unavailable" | "available";
+        /** ExceptionOut */
+        ExceptionOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            kind: components["schemas"]["ExceptionKind"];
+            /** Start */
+            start?: string | null;
+            /** End */
+            end?: string | null;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
         /**
          * FocusOut
          * @description Where to centre results: the geocoded postal code.
@@ -857,6 +1064,36 @@ export interface components {
          * @enum {string}
          */
         PartnerBackground: "professional" | "college" | "high_school_varsity" | "club" | "coach" | "other";
+        /** PartnerCardOut */
+        PartnerCardOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Full Name */
+            full_name: string;
+            /** Avatar Url */
+            avatar_url: string | null;
+            /** Ntrp Rating */
+            ntrp_rating: number | null;
+            background: components["schemas"]["PartnerBackground"] | null;
+            play_style: components["schemas"]["PlayStyle"] | null;
+            /** Years Playing */
+            years_playing: number | null;
+            /** Bio */
+            bio: string;
+            /** Timezone */
+            timezone: string;
+            /** Distance Km */
+            distance_km: number;
+            /** Clubs */
+            clubs: components["schemas"]["ClubRefOut"][];
+            /** Slots */
+            slots: string[];
+            /** Next Slot */
+            next_slot: string | null;
+        };
         /** PartnerClubsIn */
         PartnerClubsIn: {
             /** Club Ids */
@@ -960,6 +1197,36 @@ export interface components {
             /** Missing For Application */
             missing_for_application?: string[];
         };
+        /** PartnerPublicOut */
+        PartnerPublicOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Full Name */
+            full_name: string;
+            /** Avatar Url */
+            avatar_url: string | null;
+            /** Ntrp Rating */
+            ntrp_rating: number | null;
+            background: components["schemas"]["PartnerBackground"] | null;
+            play_style: components["schemas"]["PlayStyle"] | null;
+            /** Dominant Hand */
+            dominant_hand: string | null;
+            /** Years Playing */
+            years_playing: number | null;
+            /** Bio */
+            bio: string;
+            /** City */
+            city: string;
+            /** Region */
+            region: string | null;
+            /** Timezone */
+            timezone: string | null;
+            /** Clubs */
+            clubs: components["schemas"]["ClubRefOut"][];
+        };
         /**
          * PartnerStatus
          * @enum {string}
@@ -1039,6 +1306,15 @@ export interface components {
          * @enum {string}
          */
         SelfServiceRole: "client" | "partner";
+        /** SlotsOut */
+        SlotsOut: {
+            /** Timezone */
+            timezone: string;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /** Days */
+            days: components["schemas"]["DaySlotsOut"][];
+        };
         /** SystemPingOut */
         SystemPingOut: {
             /**
@@ -1116,6 +1392,34 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** WeeklyScheduleIn */
+        WeeklyScheduleIn: {
+            /**
+             * Timezone
+             * @description IANA name, e.g. Europe/Madrid
+             */
+            timezone: string;
+            /** Windows */
+            windows: components["schemas"]["WeeklyWindowIn"][];
+        };
+        /** WeeklyWindowIn */
+        WeeklyWindowIn: {
+            /**
+             * Weekday
+             * @description 0 = Monday
+             */
+            weekday: number;
+            /**
+             * Start
+             * @example 07:30
+             */
+            start: string;
+            /**
+             * End
+             * @example 07:30
+             */
+            end: string;
         };
     };
     responses: never;
@@ -2180,6 +2484,300 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_availability_me_availability_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_my_availability_me_availability_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WeeklyScheduleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_my_exception_me_availability_exceptions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExceptionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailabilityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_my_exception_me_availability_exceptions__exception_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                exception_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_my_slots_me_availability_preview_get: {
+        parameters: {
+            query?: {
+                /** @description Session length in minutes (60 or 90) */
+                duration?: number;
+                days?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_partners_partners_search_get: {
+        parameters: {
+            query: {
+                lat: number;
+                lon: number;
+                radius_km?: number;
+                date?: string | null;
+                /** @description Session length in minutes (60 or 90) */
+                duration?: number;
+                min_level?: number | string | null;
+                club_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerCardOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_partner_partners__partner_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                partner_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerPublicOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_partner_slots_partners__partner_id__slots_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                days?: number;
+                /** @description Session length in minutes (60 or 90) */
+                duration?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                partner_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotsOut"];
                 };
             };
             /** @description Validation Error */

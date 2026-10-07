@@ -108,6 +108,8 @@ class PartnerProfile(LevelMixin, TimestampMixin, Base):
     )
     bio: Mapped[str] = mapped_column(Text, nullable=False, default="")
     service_radius_km: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
+    # IANA timezone for availability (e.g. "America/Chicago"); set with the weekly schedule.
+    timezone: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[PartnerStatus] = mapped_column(
         _enum(PartnerStatus, "partner_status"), nullable=False, default=PartnerStatus.DRAFT
     )

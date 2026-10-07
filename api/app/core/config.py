@@ -92,6 +92,12 @@ class Settings(BaseSettings):
     city_refresh_days: int = 30
     discovery_max_attempts: int = 5
 
+    # Booking rules shared by availability (M4) and booking (M5).
+    session_durations_minutes: list[int] = Field(default_factory=lambda: [60, 90])
+    slot_step_minutes: int = 30
+    min_booking_notice_hours: int = 12
+    booking_horizon_days: int = 30
+
     # Minimum self-rated NTRP to apply as a hitting partner.
     min_partner_ntrp: float = 4.5
 

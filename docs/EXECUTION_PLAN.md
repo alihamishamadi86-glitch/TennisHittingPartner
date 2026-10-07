@@ -14,7 +14,7 @@ Google Cloud (Cloud Run, Cloud SQL Postgres + PostGIS, Pub/Sub, Cloud Tasks).
 | M1 | Authentication (email/password + Google) | 🟡 Code complete — needs Google OAuth client per env |
 | M2 | Profiles & levels | ✅ Code complete |
 | M3 | Club discovery | ✅ Code complete |
-| M4 | Availability & partner search | ⬜ |
+| M4 | Availability & partner search | ✅ Code complete |
 | M5 | Booking core | ⬜ |
 | M6 | Payments & policies | ⬜ |
 | M7 | Notifications | ⬜ |
@@ -314,6 +314,28 @@ retries with city + country.
 ### M4 — Availability & partner search (week 8)
 - Availability rules/exceptions, slot engine (timezone/DST tests), search endpoint + UI.
 - **Exit:** client searches by city/club/date and sees real open slots.
+
+**M4 status (2026-10-08):**
+- [x] Weekly windows (minutes after local midnight, so 24:00 works) + date exceptions (day off,
+  blocked hours, extra hours) in the partner's IANA timezone
+- [x] Pure slot engine: windows converted to UTC before slicing, so DST is correct by
+  construction (missing hour → no slots; repeated hour → two real slots); 30-min starts,
+  60/90-min sessions, 12 h notice, 30-day horizon; `busy` hook ready for M5 bookings
+- [x] `GET|PUT /me/availability`, exceptions, `GET /me/availability/preview`
+- [x] `GET /partners/search` (approved, level ≥ min, a chosen club within radius; ranked by
+  bookable → distance → level), `GET /partners/{id}`, `GET /partners/{id}/slots`
+- [x] Next.js: partner availability editor (timezone, weekly grid, copy-to-weekdays,
+  exceptions, live preview); client partner search (day chips, 60/90, level, radius) and
+  partner pages; nav + dashboard links
+- [x] Fixed a race: concurrent lookups of a new city/postcode collided on unique keys (500);
+  inserts are now `ON CONFLICT DO NOTHING` (regression test)
+- [x] 160 backend tests; browser-verified partner sets hours/day off → client finds them,
+  date filter respects the day off, level filter excludes, partner page shows the week
+
+**Decisions**
+- Availability is per partner, not per club; the client picks one of the partner's clubs when
+  booking (M5).
+- The partner's timezone defaults to their browser's; derive it from the city later if needed.
 
 ### M5 — Booking core / R4 (weeks 9–10)
 - Hold flow, exclusion constraint, Cloud Tasks expiry, state machine, waiver signing,

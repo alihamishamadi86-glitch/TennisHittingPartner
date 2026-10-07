@@ -28,11 +28,20 @@ function clientSteps(user: User): StepItem[] {
       body: "Tennis clubs, centres and public courts in your city.",
       href: "/clubs",
     },
-    { title: "Book a hitting partner", body: "Pick a partner and an open slot that suits you." },
+    {
+      title: "Find a hitting partner",
+      body: "Verified partners at your level with open times near you.",
+      href: "/partners",
+    },
   ];
 }
 
-function partnerSteps(user: User, profile: PartnerProfile | null, clubCount: number): StepItem[] {
+function partnerSteps(
+  user: User,
+  profile: PartnerProfile | null,
+  clubCount: number,
+  hasSchedule: boolean,
+): StepItem[] {
   const status = profile?.status ?? "draft";
   return [
     {
@@ -52,7 +61,12 @@ function partnerSteps(user: User, profile: PartnerProfile | null, clubCount: num
       done: clubCount > 0,
       href: "/clubs",
     },
-    { title: "Set your availability", body: "Choose the times you can play — coming next." },
+    {
+      title: "Set your availability",
+      body: hasSchedule ? "Your weekly hours are set." : "Choose the times you can play.",
+      done: hasSchedule,
+      href: "/availability",
+    },
   ];
 }
 
@@ -61,16 +75,17 @@ export default async function DashboardPage() {
   if (!user.role) redirect("/onboarding/role");
 
   const api = await authedApi();
-  const [partnerProfile, partnerClubs] =
+  const [partnerProfile, partnerClubs, hasSchedule] =
     user.role === "partner"
       ? await Promise.all([
           api.GET("/me/partner-profile").then((r) => r.data ?? null),
           api.GET("/me/partner-clubs").then((r) => r.data?.club_ids.length ?? 0),
+          api.GET("/me/availability").then((r) => (r.data?.windows.length ?? 0) > 0),
         ])
-      : [null, 0];
+      : [null, 0, false];
   const steps =
     user.role === "partner"
-      ? partnerSteps(user, partnerProfile, partnerClubs)
+      ? partnerSteps(user, partnerProfile, partnerClubs, hasSchedule)
       : user.role === "client"
         ? clientSteps(user)
         : [];
@@ -110,7 +125,7 @@ export default async function DashboardPage() {
               {partnerProfile.status === "applied" && "Thanks for applying! We'll be in touch to schedule a short court screening."}
               {partnerProfile.status === "screened" && "You passed screening — final approval is on its way."}
               {partnerProfile.status === "approved" &&
-                `You're approved at NTRP ${formatNtrp(partnerProfile.verified_ntrp_rating ?? partnerProfile.ntrp_rating)}. Availability opens up soon.`}
+                `You're approved at NTRP ${formatNtrp(partnerProfile.verified_ntrp_rating ?? partnerProfile.ntrp_rating)}. Clients can find you once your clubs and hours are set.`}
               {partnerProfile.status === "rejected" && "Your application wasn't approved. Check your email for details, update your profile and resubmit."}
             </p>
           </div>

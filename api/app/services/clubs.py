@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from geoalchemy2.functions import ST_Distance, ST_DWithin, ST_MakePoint, ST_SetSRID
 from geoalchemy2.types import Geography
 from sqlalchemy import ColumnElement, Float, cast, delete, null, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -103,7 +104,9 @@ async def request_discovery(
         if geocoded is None:
             raise CityNotFoundError
         existing, created = await _get_or_create_city(session, geocoded)
-        await session.merge(CityAlias(key=alias_key, city_id=existing.id))
+        await session.execute(
+            pg_insert(CityAlias).values(key=alias_key, city_id=existing.id).on_conflict_do_nothing()
+        )
         if created:
             record_event(session, CLUBS_DISCOVERY_REQUESTED, {"city_id": str(existing.id)})
             await session.flush()
@@ -116,30 +119,37 @@ async def request_discovery(
 
 
 async def _get_or_create_city(session: AsyncSession, geocoded: GeocodedCity) -> tuple[City, bool]:
+    """Idempotent under concurrency: two requests for a new city both succeed, and only the
+    one that inserted reports `created` (so discovery is queued once)."""
     key = city_key(geocoded.name, geocoded.region, geocoded.country_code)
-    city = await session.scalar(select(City).where(City.key == key))
-    if city is not None:
-        return city, False
-    city = City(
-        id=uuid.uuid4(),
-        name=geocoded.name,
-        region=geocoded.region,
-        country_code=geocoded.country_code,
-        key=key,
-        lat=geocoded.lat,
-        lon=geocoded.lon,
-        bbox_south=geocoded.bbox.south,
-        bbox_west=geocoded.bbox.west,
-        bbox_north=geocoded.bbox.north,
-        bbox_east=geocoded.bbox.east,
-        geocoder=geocoded.provider,
-        geocoder_place_id=geocoded.place_id,
-        status=DiscoveryStatus.PENDING,
-        attempts=0,
+    inserted_id = await session.scalar(
+        pg_insert(City)
+        .values(
+            id=uuid.uuid4(),
+            name=geocoded.name,
+            region=geocoded.region,
+            country_code=geocoded.country_code,
+            key=key,
+            lat=geocoded.lat,
+            lon=geocoded.lon,
+            bbox_south=geocoded.bbox.south,
+            bbox_west=geocoded.bbox.west,
+            bbox_north=geocoded.bbox.north,
+            bbox_east=geocoded.bbox.east,
+            geocoder=geocoded.provider,
+            geocoder_place_id=geocoded.place_id,
+            status=DiscoveryStatus.PENDING,
+            attempts=0,
+            club_count=0,
+        )
+        .on_conflict_do_nothing(index_elements=[City.key])
+        .returning(City.id)
     )
-    session.add(city)
-    await session.flush()
-    return city, True
+    city = await session.scalar(
+        select(City).where(City.key == key).execution_options(populate_existing=True)
+    )
+    assert city is not None
+    return city, inserted_id is not None
 
 
 def normalize_postcode(postal_code: str) -> str:
@@ -157,16 +167,22 @@ async def resolve_postcode(
     geocoded = await geocoder.geocode_postcode(code, country_code)
     if geocoded is None:
         raise PostcodeNotFoundError
-    postcode = PostalCode(
-        country_code=country_code,
-        postal_code=code,
-        lat=geocoded.lat,
-        lon=geocoded.lon,
-        city_name=geocoded.city,
-        region=geocoded.region,
+    # Concurrent lookups of the same new postcode (two tabs, React's double effects) race
+    # here; whoever inserts second just reads the row back.
+    await session.execute(
+        pg_insert(PostalCode)
+        .values(
+            country_code=country_code,
+            postal_code=code,
+            lat=geocoded.lat,
+            lon=geocoded.lon,
+            city_name=geocoded.city,
+            region=geocoded.region,
+        )
+        .on_conflict_do_nothing()
     )
-    session.add(postcode)
-    await session.flush()
+    postcode = await session.get(PostalCode, (country_code, code), populate_existing=True)
+    assert postcode is not None
     return postcode, True
 
 

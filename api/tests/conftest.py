@@ -25,6 +25,8 @@ from app.events.publisher import InMemoryPublisher
 from app.events.registry import dispatch
 from app.integrations.email import InMemoryEmailSender
 
+pytest_plugins = ["tests.geo_fixtures"]
+
 if TYPE_CHECKING:
     from app.integrations.storage import LocalStorage
 
@@ -49,7 +51,8 @@ async def clean_tables() -> AsyncIterator[None]:
             text(
                 "TRUNCATE outbox_events, processed_events, system_pings, users, auth_identities,"
                 " refresh_tokens, email_tokens, client_profiles, partner_profiles,"
-                " partner_verifications, cities, city_aliases, clubs, partner_clubs"
+                " partner_verifications, cities, city_aliases, clubs, partner_clubs, postal_codes,"
+                " availability_rules, availability_exceptions"
                 " RESTART IDENTITY CASCADE"
             )
         )
