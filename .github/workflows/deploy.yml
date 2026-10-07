@@ -1,6 +1,6 @@
 name: Deploy
 
-# Required GitHub configuration (Settings → Environments → staging → variables):
+# Required GitHub configuration (Actions variables or secrets, repository or `staging` env):
 #   GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOYER_SA
 # Values come from `terraform output` (see infra/README.md).
 
@@ -25,16 +25,16 @@ jobs:
       contents: read
       id-token: write
     env:
-      REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/thp-images
+      REGISTRY: ${{ vars.GCP_REGION || secrets.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}/thp-images
       TAG: ${{ github.sha }}
-      REGION: ${{ vars.GCP_REGION }}
+      REGION: ${{ vars.GCP_REGION || secrets.GCP_REGION }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER || secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA || secrets.GCP_DEPLOYER_SA }}
 
       - uses: google-github-actions/setup-gcloud@v2
 
