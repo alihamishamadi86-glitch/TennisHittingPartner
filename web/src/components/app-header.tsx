@@ -20,6 +20,11 @@ export function AppHeader({ user }: { user: User }) {
             Availability
           </Link>
         )}
+        {(user.role === "client" || user.role === "partner") && (
+          <Link href="/sessions" className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800">
+            Sessions
+          </Link>
+        )}
         <Link href="/clubs" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 sm:inline dark:text-zinc-300 dark:hover:bg-zinc-800">
           Courts
         </Link>

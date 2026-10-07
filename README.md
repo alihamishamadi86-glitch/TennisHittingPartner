@@ -45,5 +45,6 @@ Other targets: `make test`, `make lint`, `make fmt`, `make migration m="..."`, `
    once per consumer (`processed_events` makes redeliveries no-ops).
 
 Adding an event: add it to `api/app/events/catalog.py`, add the topic to `event_types` in
-`infra/terraform`, write a handler in `api/app/events/handlers/`, and re-run `make up` locally
-so the emulator bootstrap creates the topic.
+`infra/terraform`, write a handler in `api/app/events/handlers/`, and run `make topics` (or
+`make up`) so the local emulator has the topic. Until then events wait safely in the outbox
+and are published once the topic exists.

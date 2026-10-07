@@ -155,8 +155,10 @@ async def preview_my_slots(
     profile = await _own_profile(session, user)
     if profile.timezone is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Set your weekly schedule first")
-    schedule = (await service.load_schedules(session, [profile], date.min, date.max))[user.id]
-    today = datetime.now(UTC).astimezone(schedule.tz).date()
+    today = datetime.now(UTC).astimezone(service.parse_timezone(profile.timezone)).date()
+    schedule = (
+        await service.load_schedules(session, [profile], today, today + timedelta(days=days))
+    )[user.id]
     return _slots_out(schedule, profile.timezone, today, days, duration)
 
 

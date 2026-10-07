@@ -21,6 +21,25 @@ resource "google_cloud_scheduler_job" "outbox_relay" {
   depends_on = [google_project_service.enabled]
 }
 
+# Every minute: release booking holds whose checkout lapsed (bookings also expire lazily).
+resource "google_cloud_scheduler_job" "expire_holds" {
+  name      = "${local.name_prefix}-expire-holds"
+  region    = var.region
+  schedule  = "* * * * *"
+  time_zone = "Etc/UTC"
+
+  http_target {
+    http_method = "POST"
+    uri         = "${local.run_url.worker}/tasks/expire-holds"
+    oidc_token {
+      service_account_email = google_service_account.invoker.email
+      audience              = local.run_url.worker
+    }
+  }
+
+  depends_on = [google_project_service.enabled]
+}
+
 # Daily: re-discover clubs for cities whose data is older than CITY_REFRESH_DAYS.
 resource "google_cloud_scheduler_job" "refresh_cities" {
   name      = "${local.name_prefix}-refresh-cities"

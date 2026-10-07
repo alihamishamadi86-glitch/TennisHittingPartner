@@ -15,7 +15,7 @@ Google Cloud (Cloud Run, Cloud SQL Postgres + PostGIS, Pub/Sub, Cloud Tasks).
 | M2 | Profiles & levels | ✅ Code complete |
 | M3 | Club discovery | ✅ Code complete |
 | M4 | Availability & partner search | ✅ Code complete |
-| M5 | Booking core | ⬜ |
+| M5 | Booking core | ✅ Code complete |
 | M6 | Payments & policies | ⬜ |
 | M7 | Notifications | ⬜ |
 | M8 | Payouts, reviews, admin, retention | ⬜ |
@@ -341,6 +341,24 @@ retries with city + country.
 - Hold flow, exclusion constraint, Cloud Tasks expiry, state machine, waiver signing,
   "My sessions" for both roles, cancellation via policy module.
 - **Exit:** concurrency tests pass; full booking lifecycle on staging.
+
+**M5 status (2026-10-08):**
+- [x] `bookings` with two Postgres exclusion constraints: per partner over
+  `[starts_at, blocked_until)` (session + 30 min travel buffer) and per client over the session,
+  both only for held/confirmed bookings — double-booking is impossible even under races
+- [x] Hold → confirm (10 min hold; confirm becomes payment in M6). Lapsed holds expire lazily
+  before each booking attempt and via a once-a-minute sweep (`/tasks/expire-holds`, Cloud
+  Scheduler) — chosen over a Cloud Task per hold: simpler, works locally, same guarantees
+- [x] Pure policy module: allowed actions per role/time, free cancellation ≥ 12 h, 50% late fee,
+  partner cancel/rain-out free for the client (fees charged and credits ledgered in M6)
+- [x] Versioned waiver (v1 seeded; needs legal review), signed with typed name, IP, user agent;
+  verified email + player profile + signed waiver required to book
+- [x] Open slots exclude existing bookings and the buffer
+- [x] Emails via Pub/Sub: confirmation (both), cancellation (other party), rain-out (client)
+- [x] Next.js: bookable times on partner pages, `/book` (club, note, waiver, hold countdown,
+  confirm/release), `/sessions` (upcoming/past, cancel with fee warning, complete/no-show)
+- [x] 193 backend tests (concurrent booking race, constraint-level buffer, expiry, all cancel
+  paths); browser-verified verify email → sign waiver → hold → confirm → emails → cancel
 
 ### M6 — Payments & policies (weeks 11–12)
 - Stripe Checkout / PaymentIntents, idempotent webhooks → `payment.*` events.

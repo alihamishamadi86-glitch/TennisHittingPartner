@@ -97,6 +97,10 @@ class Settings(BaseSettings):
     slot_step_minutes: int = 30
     min_booking_notice_hours: int = 12
     booking_horizon_days: int = 30
+    hold_minutes: int = 10
+    travel_buffer_minutes: int = 30
+    free_cancellation_hours: int = 12
+    late_cancellation_fee_fraction: float = 0.5
 
     # Minimum self-rated NTRP to apply as a hitting partner.
     min_partner_ntrp: float = 4.5

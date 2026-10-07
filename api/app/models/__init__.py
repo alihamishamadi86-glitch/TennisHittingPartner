@@ -1,5 +1,12 @@
 from app.models.availability import AvailabilityException, AvailabilityRule, ExceptionKind
 from app.models.base import Base
+from app.models.booking import (
+    ACTIVE_STATUSES,
+    Booking,
+    BookingStatus,
+    WaiverSignature,
+    WaiverVersion,
+)
 from app.models.club import (
     City,
     CityAlias,
@@ -31,10 +38,13 @@ from app.models.user import (
 )
 
 __all__ = [
+    "ACTIVE_STATUSES",
     "AuthIdentity",
     "AvailabilityException",
     "AvailabilityRule",
     "Base",
+    "Booking",
+    "BookingStatus",
     "City",
     "CityAlias",
     "ClientGoal",
@@ -59,4 +69,6 @@ __all__ = [
     "SystemPing",
     "User",
     "UserRole",
+    "WaiverSignature",
+    "WaiverVersion",
 ]

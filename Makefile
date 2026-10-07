@@ -39,6 +39,9 @@ migrate: ## Apply migrations to the local dev db
 migration: $(VENV) ## Create a migration: make migration m="add users"
 	cd $(API) && DATABASE_URL=postgresql+asyncpg://thp:thp@localhost:55432/thp .venv/bin/alembic revision --autogenerate -m "$(m)"
 
+topics: ## (Re)create Pub/Sub emulator topics after adding event types
+	docker compose up -d --force-recreate pubsub-init
+
 smoke: ## End-to-end check: API -> outbox -> Pub/Sub emulator -> worker
 	./scripts/smoke_ping.sh http://localhost:8000
 
@@ -48,4 +51,4 @@ api-client: ## Regenerate the typed TS client from the running API's OpenAPI sch
 web: ## Run the Next.js dev server
 	cd web && npm run dev
 
-.PHONY: help up down logs install lint fmt test migrate migration smoke api-client web
+.PHONY: help up down logs install lint fmt test migrate migration topics smoke api-client web

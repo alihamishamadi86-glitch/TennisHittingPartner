@@ -11,6 +11,7 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from pydantic import BaseModel, Field, ValidationError
@@ -27,6 +28,7 @@ from app.events.publisher import get_publisher
 from app.events.registry import dispatch
 from app.events.relay import relay_outbox
 from app.routers import health
+from app.services.bookings import expire_stale_holds
 from app.services.clubs import queue_refresh, stale_cities
 
 logger = logging.getLogger(__name__)
@@ -43,15 +45,22 @@ class PushRequest(BaseModel):
     subscription: str = ""
 
 
+async def expire_holds() -> int:
+    async with get_sessionmaker()() as session, session.begin():
+        return await expire_stale_holds(session, datetime.now(UTC))
+
+
 async def _relay_loop(interval: float) -> None:
+    """Local-dev stand-in for Cloud Scheduler: outbox relay + hold expiry."""
     settings = get_settings()
     while True:
         try:
             await relay_outbox(
                 get_sessionmaker(), get_publisher(), settings.outbox_relay_batch_size
             )
+            await expire_holds()
         except Exception:
-            logger.exception("Outbox relay loop iteration failed")
+            logger.exception("Maintenance loop iteration failed")
         await asyncio.sleep(interval)
 
 
@@ -101,6 +110,11 @@ def create_worker_app() -> FastAPI:
             get_sessionmaker(), get_publisher(), settings.outbox_relay_batch_size
         )
         return {"published": published}
+
+    @app.post("/tasks/expire-holds", dependencies=[Depends(verify_push_request)])
+    async def expire_holds_task() -> dict[str, int]:
+        """Every minute (Cloud Scheduler): release booking holds whose checkout lapsed."""
+        return {"expired": await expire_holds()}
 
     @app.post("/tasks/refresh-cities", dependencies=[Depends(verify_push_request)])
     async def refresh_cities() -> dict[str, int]:

@@ -1,5 +1,7 @@
+from datetime import datetime
 from html import escape
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 from app.core.config import get_settings
 from app.integrations.email import EmailMessage
@@ -91,4 +93,75 @@ def partner_decision_email(partner: User, status: str, note: str) -> EmailMessag
         subject=subject,
         text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
         html=_html(greeting, body, "Open dashboard", link, footer),
+    )
+
+
+def _when(starts_at: datetime, timezone: str, duration: int) -> str:
+    local = starts_at.astimezone(ZoneInfo(timezone))
+    return f"{local:%A %d %B, %H:%M} ({local.tzname()}), {duration} minutes"
+
+
+def booking_confirmed_email(
+    recipient: User,
+    other: User,
+    club_name: str,
+    starts_at: datetime,
+    timezone: str,
+    duration: int,
+    *,
+    to_partner: bool,
+) -> EmailMessage:
+    link = f"{get_settings().public_web_url}/sessions"
+    when = _when(starts_at, timezone, duration)
+    greeting = f"Hi {recipient.full_name or 'there'},"
+    body = (
+        f"New session booked: {other.full_name} at {club_name}, {when}."
+        if to_partner
+        else f"You're booked with {other.full_name} at {club_name}, {when}. "
+        "Remember to arrange court access at the venue."
+    )
+    footer = "Free cancellation up to 12 hours before the session; a 50% fee applies after that."
+    return EmailMessage(
+        to=recipient.email,
+        subject=f"Session confirmed: {when}",
+        text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
+        html=_html(greeting, body, "View session", link, footer),
+    )
+
+
+def booking_cancelled_email(
+    recipient: User,
+    cancelled_by: str,
+    club_name: str,
+    starts_at: datetime,
+    timezone: str,
+    duration: int,
+    reason: str,
+) -> EmailMessage:
+    link = f"{get_settings().public_web_url}/sessions"
+    when = _when(starts_at, timezone, duration)
+    greeting = f"Hi {recipient.full_name or 'there'},"
+    body = f"Your session at {club_name}, {when}, was cancelled by the {cancelled_by}."
+    footer = f"Reason: {reason}" if reason else "You can book another time any time."
+    return EmailMessage(
+        to=recipient.email,
+        subject=f"Session cancelled: {when}",
+        text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
+        html=_html(greeting, body, "Find another time", link, footer),
+    )
+
+
+def booking_rained_out_email(
+    recipient: User, club_name: str, starts_at: datetime, timezone: str, duration: int
+) -> EmailMessage:
+    link = f"{get_settings().public_web_url}/partners"
+    when = _when(starts_at, timezone, duration)
+    greeting = f"Hi {recipient.full_name or 'there'},"
+    body = f"Your session at {club_name}, {when}, was rained out. You haven't been charged."
+    footer = "You have a rebooking credit valid for 30 days."
+    return EmailMessage(
+        to=recipient.email,
+        subject="Rained out — your session is credited",
+        text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
+        html=_html(greeting, body, "Rebook", link, footer),
     )

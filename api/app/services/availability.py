@@ -10,13 +10,15 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from geoalchemy2.functions import ST_Distance, ST_DWithin, ST_MakePoint, ST_SetSRID
 from geoalchemy2.types import Geography
-from sqlalchemy import ColumnElement, cast, delete, func, select
+from sqlalchemy import ColumnElement, and_, cast, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models import (
     AvailabilityException,
     AvailabilityRule,
+    Booking,
+    BookingStatus,
     Club,
     ExceptionKind,
     PartnerClub,
@@ -169,12 +171,14 @@ class PartnerSchedule:
     tz: ZoneInfo
     weekly: list[WeeklyWindow] = field(default_factory=list)
     exceptions: list[DateException] = field(default_factory=list)
+    # Existing bookings, widened by the travel buffer on both sides.
+    busy: list[tuple[datetime, datetime]] = field(default_factory=list)
 
 
 async def load_schedules(
     session: AsyncSession, partners: Sequence[PartnerProfile], first_day: date, last_day: date
 ) -> dict[uuid.UUID, PartnerSchedule]:
-    """Weekly rules and exceptions for many partners in two queries."""
+    """Weekly rules, exceptions and existing bookings for many partners in three queries."""
     schedules = {
         p.user_id: PartnerSchedule(tz=parse_timezone(p.timezone)) for p in partners if p.timezone
     }
@@ -197,6 +201,24 @@ async def load_schedules(
             DateException(
                 exc.date, exc.kind is ExceptionKind.AVAILABLE, exc.start_minute, exc.end_minute
             )
+        )
+    now = _now()
+    buffer = timedelta(minutes=get_settings().travel_buffer_minutes)
+    range_start = datetime.combine(first_day, datetime.min.time(), UTC) - timedelta(days=1)
+    range_end = datetime.combine(last_day, datetime.min.time(), UTC) + timedelta(days=2)
+    for booking in await session.scalars(
+        select(Booking).where(
+            Booking.partner_id.in_(ids),
+            Booking.starts_at < range_end,
+            Booking.blocked_until > range_start,
+            or_(
+                Booking.status == BookingStatus.CONFIRMED,
+                and_(Booking.status == BookingStatus.HELD, Booking.hold_expires_at > now),
+            ),
+        )
+    ):
+        schedules[booking.partner_id].busy.append(
+            (booking.starts_at - buffer, booking.blocked_until)
         )
     return schedules
 
@@ -222,8 +244,7 @@ def slots_for(
         now=now,
         min_notice=timedelta(hours=settings.min_booking_notice_hours),
         step=timedelta(minutes=settings.slot_step_minutes),
-        # Confirmed/held bookings are subtracted here from M5.
-        busy=[],
+        busy=schedule.busy,
     )
 
 

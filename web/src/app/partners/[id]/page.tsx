@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { AppHeader } from "@/components/app-header";
 import { SlotPreview } from "@/components/availability/slot-preview";
-import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { authedApi, requireUser } from "@/lib/auth/server";
 import { zoneLabel } from "@/lib/availability/format";
@@ -92,12 +91,20 @@ export default async function PartnerPage(props: PageProps<"/partners/[id]">) {
             {slots ? (
               <>
                 <p className="text-xs text-zinc-500">Times in {zoneLabel(slots.timezone)} ({slots.timezone.replace(/_/g, " ")}).</p>
-                <SlotPreview slots={slots} emptyText="No open times this week." />
+                <SlotPreview
+                  slots={slots}
+                  emptyText="No open times this week."
+                  bookingHref={
+                    user.role === "client"
+                      ? (slot) => `/book?partner=${id}&start=${encodeURIComponent(slot)}&duration=${duration}`
+                      : undefined
+                  }
+                />
               </>
             ) : (
               <p className="text-sm text-zinc-500">This partner hasn&apos;t published availability yet.</p>
             )}
-            <Alert>Online booking opens in the next update — for now, note a time and we&apos;ll confirm it with you.</Alert>
+            {user.role === "client" && <p className="text-xs text-zinc-500">Pick a time to book. Free cancellation up to 12 hours before.</p>}
           </section>
         </div>
       </main>

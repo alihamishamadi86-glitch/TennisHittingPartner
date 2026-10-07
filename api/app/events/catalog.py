@@ -13,6 +13,10 @@ PASSWORD_RESET_REQUESTED = "auth.password_reset_requested"  # noqa: S105 (event 
 PARTNER_APPLICATION_SUBMITTED = "partner.application_submitted"
 PARTNER_VERIFICATION_DECIDED = "partner.verification_decided"
 CLUBS_DISCOVERY_REQUESTED = "clubs.discovery.requested"
+BOOKING_CONFIRMED = "booking.confirmed"
+BOOKING_CANCELLED = "booking.cancelled"
+BOOKING_COMPLETED = "booking.completed"
+BOOKING_RAINED_OUT = "booking.rained_out"
 
 EVENT_TYPES: tuple[str, ...] = (
     SYSTEM_PING,
@@ -22,6 +26,10 @@ EVENT_TYPES: tuple[str, ...] = (
     PARTNER_APPLICATION_SUBMITTED,
     PARTNER_VERIFICATION_DECIDED,
     CLUBS_DISCOVERY_REQUESTED,
+    BOOKING_CONFIRMED,
+    BOOKING_CANCELLED,
+    BOOKING_COMPLETED,
+    BOOKING_RAINED_OUT,
 )
 
 

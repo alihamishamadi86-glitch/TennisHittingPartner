@@ -52,7 +52,7 @@ async def clean_tables() -> AsyncIterator[None]:
                 "TRUNCATE outbox_events, processed_events, system_pings, users, auth_identities,"
                 " refresh_tokens, email_tokens, client_profiles, partner_profiles,"
                 " partner_verifications, cities, city_aliases, clubs, partner_clubs, postal_codes,"
-                " availability_rules, availability_exceptions"
+                " availability_rules, availability_exceptions, bookings, waiver_signatures"
                 " RESTART IDENTITY CASCADE"
             )
         )
@@ -86,7 +86,7 @@ async def worker_client() -> AsyncIterator[AsyncClient]:
 @pytest.fixture
 def email_sender(monkeypatch: pytest.MonkeyPatch) -> InMemoryEmailSender:
     fake = InMemoryEmailSender()
-    for module in ("auth", "partners"):
+    for module in ("auth", "partners", "bookings"):
         monkeypatch.setattr(f"app.events.handlers.{module}.get_email_sender", lambda: fake)
     return fake
 
