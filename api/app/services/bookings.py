@@ -37,7 +37,7 @@ from app.models import (
     WaiverSignature,
     WaiverVersion,
 )
-from app.services import availability
+from app.services import availability, payments
 from app.services.auth import ClientInfo
 from app.services.booking_policy import (
     Action,
@@ -209,6 +209,7 @@ async def create_hold(
         raise BookingError("slot_unavailable", "That time isn't available — please pick another")
 
     ends_at = starts_at + timedelta(minutes=duration_minutes)
+    price_cents, partner_pay_cents = payments.pricing_for(duration_minutes)
     booking = Booking(
         client_id=client.id,
         partner_id=partner_id,
@@ -221,6 +222,9 @@ async def create_hold(
         status=BookingStatus.HELD,
         hold_expires_at=now + timedelta(minutes=settings.hold_minutes),
         client_note=note.strip(),
+        currency=settings.currency,
+        price_cents=price_cents,
+        partner_pay_cents=partner_pay_cents,
     )
     try:
         async with session.begin_nested():
@@ -266,6 +270,10 @@ async def apply_action(
     if actor is None:
         raise BookingError("not_found", "Booking not found")
 
+    if action is Action.CONFIRM:
+        # Bookings are confirmed by payment (webhook), never directly.
+        raise BookingError("payment_required", "Pay to confirm this booking")
+
     if action is Action.CANCEL:
         if Action.CANCEL not in allowed_actions(
             status=booking.status,
@@ -292,6 +300,7 @@ async def apply_action(
         booking.cancelled_by_id = user.id
         booking.cancellation_reason = reason.strip()
         if was_confirmed:
+            await payments.refund_after_cancellation(session, booking, outcome.fee_fraction)
             record_event(session, BOOKING_CANCELLED, _event(booking, by=actor.value))
         return booking
 
@@ -314,7 +323,7 @@ async def apply_action(
     elif target is BookingStatus.COMPLETED:
         record_event(session, BOOKING_COMPLETED, _event(booking))
     elif target is BookingStatus.RAINED_OUT:
-        booking.credit_issued = True
+        booking.credit_issued = await payments.credit_rain_out(session, booking) > 0
         booking.cancelled_at = now
         booking.cancelled_by_id = user.id
         booking.cancellation_reason = reason.strip() or "Rained out"

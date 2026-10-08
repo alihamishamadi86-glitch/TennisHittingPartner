@@ -3,16 +3,18 @@
 
 locals {
   backend_env = {
-    ENVIRONMENT        = var.environment
-    GCP_PROJECT_ID     = var.project_id
-    LOG_LEVEL          = "INFO"
-    ENABLE_SYSTEM_PING = tostring(var.enable_system_ping)
-    PUBLIC_WEB_URL     = local.run_url.web
-    COOKIE_SECURE      = "true"
-    GOOGLE_CLIENT_ID   = var.google_client_id
-    EMAIL_BACKEND      = "console" # until an email provider is wired (M7)
-    STORAGE_BACKEND    = "gcs"
-    GCS_BUCKET         = google_storage_bucket.media.name
+    ENVIRONMENT            = var.environment
+    GCP_PROJECT_ID         = var.project_id
+    LOG_LEVEL              = "INFO"
+    ENABLE_SYSTEM_PING     = tostring(var.enable_system_ping)
+    PUBLIC_WEB_URL         = local.run_url.web
+    COOKIE_SECURE          = "true"
+    GOOGLE_CLIENT_ID       = var.google_client_id
+    EMAIL_BACKEND          = "console" # until an email provider is wired (M7)
+    STORAGE_BACKEND        = "gcs"
+    PAYMENT_PROVIDER       = var.payment_provider
+    STRIPE_PUBLISHABLE_KEY = var.stripe_publishable_key
+    GCS_BUCKET             = google_storage_bucket.media.name
   }
 }
 

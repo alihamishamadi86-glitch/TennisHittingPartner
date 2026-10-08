@@ -36,6 +36,7 @@ variable "event_types" {
     "booking.cancelled",
     "booking.completed",
     "booking.rained_out",
+    "payment.refund_requested",
   ]
 }
 
@@ -58,4 +59,20 @@ variable "google_client_id" {
   type        = string
   default     = ""
   description = "OAuth 2.0 Web client id for Google sign-in. Empty disables Google sign-in."
+}
+
+variable "payment_provider" {
+  type        = string
+  default     = "fake"
+  description = "\"stripe\" once keys are in Secret Manager; \"fake\" simulates payments (never in production)."
+  validation {
+    condition     = contains(["fake", "stripe"], var.payment_provider)
+    error_message = "payment_provider must be fake or stripe."
+  }
+}
+
+variable "stripe_publishable_key" {
+  type        = string
+  default     = ""
+  description = "Stripe publishable key (pk_test_… / pk_live_…). Public by design."
 }

@@ -5,7 +5,7 @@ export type BookingStatus = components["schemas"]["BookingStatus"];
 export type Waiver = components["schemas"]["WaiverOut"];
 
 export const STATUS_LABELS: Record<BookingStatus, string> = {
-  held: "Awaiting confirmation",
+  held: "Awaiting payment",
   confirmed: "Confirmed",
   completed: "Completed",
   expired: "Expired",

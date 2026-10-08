@@ -165,3 +165,22 @@ def booking_rained_out_email(
         text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
         html=_html(greeting, body, "Rebook", link, footer),
     )
+
+
+def format_money(amount_cents: int, currency: str) -> str:
+    symbol = {"usd": "$", "eur": "€", "gbp": "£"}.get(currency.lower())
+    value = f"{amount_cents / 100:,.2f}"
+    return f"{symbol}{value}" if symbol else f"{value} {currency.upper()}"
+
+
+def refund_email(recipient: User, amount_cents: int, currency: str) -> EmailMessage:
+    link = f"{get_settings().public_web_url}/sessions?scope=past"
+    greeting = f"Hi {recipient.full_name or 'there'},"
+    body = f"We've refunded {format_money(amount_cents, currency)} to your card."
+    footer = "Refunds usually appear on your statement within 5–10 business days."
+    return EmailMessage(
+        to=recipient.email,
+        subject=f"Refund of {format_money(amount_cents, currency)} issued",
+        text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
+        html=_html(greeting, body, "View sessions", link, footer),
+    )

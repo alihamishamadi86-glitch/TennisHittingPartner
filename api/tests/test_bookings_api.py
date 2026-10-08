@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app.core.db import get_sessionmaker
 from app.integrations.email import InMemoryEmailSender
 from app.models import Booking, BookingStatus, User
-from tests.test_availability_api import CHICAGO, club_ids, local_today, make_partner
+from tests.test_availability_api import CHICAGO, local_today, make_partner
 from tests.test_profiles import CLIENT_PROFILE
 
 MakeClient = Callable[..., Awaitable[AsyncClient]]
@@ -52,6 +52,16 @@ async def book(client: AsyncClient, partner_id: str, club_id: str, start: dateti
     )
 
 
+async def pay(client: AsyncClient, booking_id: str, promo: str | None = None) -> dict:  # type: ignore[type-arg]
+    """Check out and settle via the fake gateway (stands in for Stripe's webhook)."""
+    checkout = await client.post(f"/bookings/{booking_id}/checkout", json={"promo_code": promo})
+    assert checkout.status_code == 200, checkout.text
+    if checkout.json()["client_secret"]:
+        paid = await client.post(f"/dev-payments/{checkout.json()['payment']['id']}/succeed")
+        assert paid.status_code == 204, paid.text
+    return (await client.get(f"/bookings/{booking_id}")).json()
+
+
 async def shift_start(booking_id: str, starts_at: datetime) -> None:
     """Time travel: move a booking (tests can't wait for real time to pass)."""
     async with get_sessionmaker()() as session:
@@ -65,19 +75,6 @@ async def shift_start(booking_id: str, starts_at: datetime) -> None:
             )
         )
         await session.commit()
-
-
-@pytest.fixture
-async def setup(make_client: MakeClient, geocoder, sources, deliver):  # type: ignore[no-untyped-def]
-    client = await ready_client(make_client)
-    downtown, north = await club_ids(client, deliver)
-    partner, partner_id = await make_partner(
-        make_client,
-        [downtown],
-        schedule=[{"weekday": d, "start": "08:00", "end": "12:00"} for d in range(7)],
-    )
-    await deliver()
-    return client, partner, partner_id, downtown, north
 
 
 # --- Waiver -----------------------------------------------------------------------------
@@ -152,10 +149,11 @@ async def test_hold_then_confirm(setup, deliver, email_sender: InMemoryEmailSend
     local = [datetime.fromisoformat(s).astimezone(CHICAGO).strftime("%H:%M") for s in day["slots"]]
     assert local == ["09:30", "10:00", "10:30", "11:00"]  # 08:00 taken; 08:30/09:00 in buffer
 
-    confirmed = await client.post(f"/bookings/{body['id']}/confirm")
-    assert confirmed.json()["status"] == "confirmed"
-    assert confirmed.json()["actions"] == ["cancel"]
-    assert confirmed.json()["cancellation_terms"]["fee_fraction_if_cancelled_now"] == 0
+    confirmed = await pay(client, body["id"])
+    assert confirmed["status"] == "confirmed"
+    assert confirmed["actions"] == ["cancel"]
+    assert confirmed["cancellation_terms"]["fee_fraction_if_cancelled_now"] == 0
+    assert (confirmed["price_cents"], confirmed["paid_cents"]) == (4500, 4500)
 
     email_sender.outbox.clear()
     assert await deliver() == ["booking.confirmed"]
@@ -256,11 +254,11 @@ async def test_expired_hold_frees_the_slot(make_client: MakeClient, setup, worke
         )
         await session.commit()
 
-    late_confirm = await client.post(f"/bookings/{hold['id']}/confirm")
+    late_checkout = await client.post(f"/bookings/{hold['id']}/checkout", json={})
     rival_hold = await book(rival, partner_id, downtown, start)  # lazy expiry frees it
 
-    assert late_confirm.status_code == 409
-    assert "expired" in late_confirm.json()["detail"]["message"]
+    assert late_checkout.status_code == 409
+    assert late_checkout.json()["detail"]["code"] == "not_payable"
     assert rival_hold.status_code == 201
     assert (await client.get(f"/bookings/{hold['id']}")).json()["status"] == "expired"
     assert (await worker_client.post("/tasks/expire-holds")).json() == {"expired": 0}
@@ -285,7 +283,7 @@ async def test_sweep_expires_lapsed_holds(setup, worker_client) -> None:
 
 async def confirmed(client: AsyncClient, partner_id: str, club: str, start: datetime) -> dict:  # type: ignore[type-arg]
     booking = (await book(client, partner_id, club, start)).json()
-    return (await client.post(f"/bookings/{booking['id']}/confirm")).json()
+    return await pay(client, booking["id"])
 
 
 async def test_client_cancels_in_time_for_free(setup, deliver, email_sender) -> None:
@@ -298,9 +296,10 @@ async def test_client_cancels_in_time_for_free(setup, deliver, email_sender) -> 
 
     assert cancelled.json()["status"] == "cancelled_free"
     assert cancelled.json()["cancellation_fee_fraction"] == 0
-    assert await deliver() == ["booking.cancelled"]
-    assert [m.to for m in email_sender.outbox] == ["partner-2@example.com"]
-    assert "Sick" in email_sender.outbox[0].text
+    assert sorted(await deliver()) == ["booking.cancelled", "payment.refund_requested"]
+    by_recipient = {m.to: m for m in email_sender.outbox}
+    assert "Sick" in by_recipient["partner-2@example.com"].text
+    assert by_recipient["client-1@example.com"].subject == "Refund of $45.00 issued"
     past = (await client.get("/bookings", params={"scope": "past"})).json()
     assert [b["id"] for b in past] == [booking["id"]]
 
@@ -328,7 +327,9 @@ async def test_partner_cancellation_notifies_client(setup, deliver, email_sender
 
     assert cancelled.json()["status"] == "partner_cancelled"
     await deliver()
-    assert [m.to for m in email_sender.outbox] == ["client-1@example.com"]
+    subjects = sorted(m.subject for m in email_sender.outbox if m.to == "client-1@example.com")
+    assert subjects[0].startswith("Refund of $45.00")
+    assert subjects[1].startswith("Session cancelled")
 
 
 # --- After the session ------------------------------------------------------------------

@@ -25,9 +25,10 @@ from app.events.publisher import InMemoryPublisher
 from app.events.registry import dispatch
 from app.integrations.email import InMemoryEmailSender
 
-pytest_plugins = ["tests.geo_fixtures"]
+pytest_plugins = ["tests.geo_fixtures", "tests.booking_fixtures"]
 
 if TYPE_CHECKING:
+    from app.integrations.payments import FakeGateway
     from app.integrations.storage import LocalStorage
 
 API_DIR = Path(__file__).resolve().parent.parent
@@ -52,7 +53,8 @@ async def clean_tables() -> AsyncIterator[None]:
                 "TRUNCATE outbox_events, processed_events, system_pings, users, auth_identities,"
                 " refresh_tokens, email_tokens, client_profiles, partner_profiles,"
                 " partner_verifications, cities, city_aliases, clubs, partner_clubs, postal_codes,"
-                " availability_rules, availability_exceptions, bookings, waiver_signatures"
+                " availability_rules, availability_exceptions, bookings, waiver_signatures,"
+                " payments, refunds, credits, promo_codes, promo_redemptions, stripe_events"
                 " RESTART IDENTITY CASCADE"
             )
         )
@@ -86,7 +88,7 @@ async def worker_client() -> AsyncIterator[AsyncClient]:
 @pytest.fixture
 def email_sender(monkeypatch: pytest.MonkeyPatch) -> InMemoryEmailSender:
     fake = InMemoryEmailSender()
-    for module in ("auth", "partners", "bookings"):
+    for module in ("auth", "partners", "bookings", "payments"):
         monkeypatch.setattr(f"app.events.handlers.{module}.get_email_sender", lambda: fake)
     return fake
 
@@ -154,3 +156,16 @@ async def make_client() -> AsyncIterator[Callable[..., Awaitable[AsyncClient]]]:
     yield _make
     for client in clients:
         await client.aclose()
+
+
+@pytest.fixture(autouse=True)
+def gateway(monkeypatch: pytest.MonkeyPatch) -> Iterator["FakeGateway"]:
+    """A fresh fake payment gateway per test, shared by the API and the worker handlers."""
+    from app.integrations.payments import FakeGateway, get_gateway
+    from app.main import app
+
+    fake = FakeGateway()
+    app.dependency_overrides[get_gateway] = lambda: fake
+    monkeypatch.setattr("app.events.handlers.payments.get_gateway", lambda: fake)
+    yield fake
+    app.dependency_overrides.pop(get_gateway, None)

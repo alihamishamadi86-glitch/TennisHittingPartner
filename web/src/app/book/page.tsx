@@ -19,11 +19,12 @@ export default async function BookPage(props: PageProps<"/book">) {
   if (!user.profile_complete) redirect("/onboarding/profile");
 
   const api = await authedApi();
-  const [{ data: partner }, { data: waiver }] = await Promise.all([
+  const [{ data: partner }, { data: waiver }, { data: paymentsConfig }] = await Promise.all([
     api.GET("/partners/{partner_id}", { params: { path: { partner_id: partnerId } } }),
     api.GET("/waiver"),
+    api.GET("/payments/config"),
   ]);
-  if (!partner) notFound();
+  if (!partner || !paymentsConfig) notFound();
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -38,6 +39,7 @@ export default async function BookPage(props: PageProps<"/book">) {
             waiver={waiver ?? null}
             emailVerified={user.email_verified}
             userName={user.full_name}
+            paymentsConfig={paymentsConfig}
           />
         </div>
       </main>

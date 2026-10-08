@@ -14,6 +14,9 @@ import type { PartnerPublic } from "@/lib/availability/format";
 import { formatSession, type Booking, type Waiver } from "@/lib/bookings/types";
 import { formatNtrp } from "@/lib/profile/labels";
 
+import { CheckoutPanel } from "@/components/payments/checkout-panel";
+import { formatMoney, type PaymentsConfig } from "@/lib/payments/money";
+
 import { WaiverForm } from "./waiver-form";
 
 const message = bookingErrorMessage;
@@ -35,6 +38,7 @@ export function BookingFlow({
   waiver,
   emailVerified,
   userName,
+  paymentsConfig,
 }: {
   partner: PartnerPublic;
   startsAt: string;
@@ -42,6 +46,7 @@ export function BookingFlow({
   waiver: Waiver | null;
   emailVerified: boolean;
   userName: string;
+  paymentsConfig: PaymentsConfig;
 }) {
   const [clubId, setClubId] = useState(partner.clubs[0]?.id ?? "");
   const [note, setNote] = useState("");
@@ -64,7 +69,7 @@ export function BookingFlow({
     else setError(message(error));
   }
 
-  async function act(action: "confirm" | "cancel") {
+  async function act(action: "cancel") {
     if (!booking) return;
     setPending(true);
     setError(undefined);
@@ -136,28 +141,22 @@ export function BookingFlow({
             Held for you for{" "}
             <strong className="tabular-nums">
               {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
-            </strong>
-            . Confirm to lock it in.
-          </Alert>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            At <strong>{booking.club.name}</strong>. Free cancellation until{" "}
+            </strong>{" "}
+            at <strong>{booking.club.name}</strong>. Free cancellation until{" "}
             {booking.cancellation_terms &&
-              new Intl.DateTimeFormat(undefined, {
-                weekday: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone,
-              }).format(new Date(booking.cancellation_terms.free_until))}
+              new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone }).format(
+                new Date(booking.cancellation_terms.free_until),
+              )}
             ; 50% fee after that.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => act("confirm")} disabled={pending || secondsLeft === 0}>
-              {pending ? "Confirming…" : "Confirm booking"}
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => act("cancel")} disabled={pending}>
-              Release
-            </Button>
-          </div>
+          </Alert>
+          {secondsLeft > 0 ? (
+            <CheckoutPanel booking={booking} config={paymentsConfig} onConfirmed={setBooking} />
+          ) : (
+            <Alert tone="error">This hold has expired.</Alert>
+          )}
+          <Button type="button" variant="ghost" onClick={() => act("cancel")} disabled={pending} className="w-fit">
+            Release this time
+          </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
@@ -190,7 +189,9 @@ export function BookingFlow({
             placeholder="What would you like to work on?"
           />
           <Button type="button" onClick={reserve} disabled={pending || !clubId || !emailVerified} className="w-fit">
-            {pending ? "Reserving…" : "Reserve this time"}
+            {pending
+              ? "Reserving…"
+              : `Reserve · ${formatMoney(paymentsConfig.prices_cents[duration] ?? 0, paymentsConfig.currency)}`}
           </Button>
         </div>
       )}

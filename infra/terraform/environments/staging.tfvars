@@ -5,4 +5,6 @@ github_repository      = "alihamishamadi86-glitch/TennisHittingPartner"
 db_tier                = "db-f1-micro"
 db_deletion_protection = false
 enable_system_ping     = true
-google_client_id       = "" # set after creating the OAuth client (infra/README.md)
+google_client_id       = ""     # set after creating the OAuth client (infra/README.md)
+payment_provider       = "fake" # switch to "stripe" after adding test keys (infra/README.md)
+stripe_publishable_key = ""

@@ -24,6 +24,7 @@ dependencies = [
     "email-validator>=2.2",
     "google-cloud-storage>=2.18",
     "geoalchemy2>=0.15",
+    "stripe>=11.0",
 ]
 
 [project.optional-dependencies]

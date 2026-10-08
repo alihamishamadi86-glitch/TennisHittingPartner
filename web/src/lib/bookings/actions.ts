@@ -1,13 +1,12 @@
 import { apiBrowser } from "@/lib/api/browser";
 
-export type BookingAction = "confirm" | "cancel" | "complete" | "no_show";
+/** Actions taken from the sessions list (confirmation happens through payment). */
+export type BookingAction = "cancel" | "complete" | "no_show";
 
 /** Typed calls for each booking action endpoint. */
 export function runBookingAction(bookingId: string, action: BookingAction, reason = "") {
   const path = { params: { path: { booking_id: bookingId } } };
   switch (action) {
-    case "confirm":
-      return apiBrowser.POST("/bookings/{booking_id}/confirm", path);
     case "cancel":
       return apiBrowser.POST("/bookings/{booking_id}/cancel", { ...path, body: { reason } });
     case "complete":

@@ -6,6 +6,7 @@ import { SlotPreview } from "@/components/availability/slot-preview";
 import { Avatar } from "@/components/ui/avatar";
 import { authedApi, requireUser } from "@/lib/auth/server";
 import { zoneLabel } from "@/lib/availability/format";
+import { formatMoney } from "@/lib/payments/money";
 import { BACKGROUND_LABELS, HAND_LABELS, STYLE_LABELS, formatNtrp } from "@/lib/profile/labels";
 
 export const metadata = { title: "Hitting partner · Tennis Hitting Partner" };
@@ -16,9 +17,10 @@ export default async function PartnerPage(props: PageProps<"/partners/[id]">) {
   const duration = durationParam === "90" ? 90 : 60;
   const user = await requireUser(`/partners/${id}`);
   const api = await authedApi();
-  const [{ data: partner }, { data: slots }] = await Promise.all([
+  const [{ data: partner }, { data: slots }, { data: paymentsConfig }] = await Promise.all([
     api.GET("/partners/{partner_id}", { params: { path: { partner_id: id } } }),
     api.GET("/partners/{partner_id}/slots", { params: { path: { partner_id: id }, query: { days: 7, duration } } }),
+    api.GET("/payments/config"),
   ]);
   if (!partner) notFound();
 
@@ -84,6 +86,8 @@ export default async function PartnerPage(props: PageProps<"/partners/[id]">) {
                     }`}
                   >
                     {m} min
+                    {paymentsConfig?.prices_cents[m] !== undefined &&
+                      ` · ${formatMoney(paymentsConfig.prices_cents[m], paymentsConfig.currency)}`}
                   </Link>
                 ))}
               </div>

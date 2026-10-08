@@ -56,13 +56,37 @@ resource "google_secret_manager_secret_version" "geoapify_api_key_placeholder" {
   }
 }
 
+# Stripe (M6). Placeholders until real keys are added:
+#   printf '%s' "$KEY" | gcloud secrets versions add stripe-secret-key --data-file=-
+#   printf '%s' "$WHSEC" | gcloud secrets versions add stripe-webhook-secret --data-file=-
+# then set payment_provider = "stripe" and stripe_publishable_key in the tfvars.
+resource "google_secret_manager_secret" "stripe" {
+  for_each  = toset(["stripe-secret-key", "stripe-webhook-secret"])
+  secret_id = each.value
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.enabled]
+}
+
+resource "google_secret_manager_secret_version" "stripe_placeholder" {
+  for_each    = google_secret_manager_secret.stripe
+  secret      = each.value.id
+  secret_data = " "
+  lifecycle {
+    ignore_changes = [secret_data, enabled]
+  }
+}
+
 locals {
   # env var name => secret id
   backend_secrets = {
-    DATABASE_URL         = google_secret_manager_secret.database_url.secret_id
-    JWT_SECRET           = google_secret_manager_secret.jwt_secret.secret_id
-    GOOGLE_CLIENT_SECRET = google_secret_manager_secret.google_client_secret.secret_id
-    GEOAPIFY_API_KEY     = google_secret_manager_secret.geoapify_api_key.secret_id
+    DATABASE_URL          = google_secret_manager_secret.database_url.secret_id
+    JWT_SECRET            = google_secret_manager_secret.jwt_secret.secret_id
+    GOOGLE_CLIENT_SECRET  = google_secret_manager_secret.google_client_secret.secret_id
+    GEOAPIFY_API_KEY      = google_secret_manager_secret.geoapify_api_key.secret_id
+    STRIPE_SECRET_KEY     = google_secret_manager_secret.stripe["stripe-secret-key"].secret_id
+    STRIPE_WEBHOOK_SECRET = google_secret_manager_secret.stripe["stripe-webhook-secret"].secret_id
   }
 }
 
@@ -80,5 +104,6 @@ resource "google_secret_manager_secret_iam_member" "backend_access" {
     google_secret_manager_secret_version.jwt_secret,
     google_secret_manager_secret_version.google_client_secret_placeholder,
     google_secret_manager_secret_version.geoapify_api_key_placeholder,
+    google_secret_manager_secret_version.stripe_placeholder,
   ]
 }

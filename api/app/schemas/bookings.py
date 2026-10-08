@@ -66,6 +66,11 @@ class CancellationTermsOut(BaseModel):
 class BookingOut(BaseModel):
     id: uuid.UUID
     status: BookingStatus
+    currency: str
+    price_cents: int
+    # Paid by card + credit (excludes promo discount); refunded to card so far.
+    paid_cents: int
+    refunded_cents: int
     starts_at: datetime
     ends_at: datetime
     duration_minutes: int

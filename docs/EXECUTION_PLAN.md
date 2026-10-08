@@ -16,7 +16,7 @@ Google Cloud (Cloud Run, Cloud SQL Postgres + PostGIS, Pub/Sub, Cloud Tasks).
 | M3 | Club discovery | ✅ Code complete |
 | M4 | Availability & partner search | ✅ Code complete |
 | M5 | Booking core | ✅ Code complete |
-| M6 | Payments & policies | ⬜ |
+| M6 | Payments & policies | ✅ Code complete — Stripe keys pending |
 | M7 | Notifications | ⬜ |
 | M8 | Payouts, reviews, admin, retention | ⬜ |
 
@@ -364,6 +364,23 @@ retries with city + country.
 - Stripe Checkout / PaymentIntents, idempotent webhooks → `payment.*` events.
 - Automatic partial refunds on late cancel, rain-out credit ledger, promo codes.
 - **Exit:** all policy paths pass against Stripe test mode.
+
+**M6 status (2026-10-08):**
+- [x] Price snapshot per booking (60 min $45 / partner $30, 90 min $65 / $45; configurable)
+- [x] Checkout with Stripe **PaymentIntents + Payment Element** (embedded; Checkout Sessions'
+  30-min minimum doesn't fit a 10-min hold). Confirmation only via the signature-verified,
+  idempotent webhook (`stripe_events`), never the browser
+- [x] Money arriving after a lapsed hold: slot revived if still free (exclusion constraint
+  decides), otherwise refunded automatically; same for released holds
+- [x] Refunds via outbox → worker with Stripe idempotency keys (retry-safe): free cancel 100%,
+  late 50%, partner 100%; card first, credit-paid portion back as credit; refund email
+- [x] Account credits (rain-outs 30 days, refunded credit), auto-applied soonest-expiring first;
+  fully covered bookings confirm without a card
+- [x] Promo codes (percent/amount, first-booking-only, max redemptions, expiry, once per user)
+- [x] Fake gateway for local dev/tests ("Simulated payment"); production requires Stripe
+- [x] 213 backend tests; browser-verified promo → simulated pay → confirmed → cancel → refund
+  → email, and rain-out → credit balance
+- [ ] Stripe test keys + webhook endpoint (infra/README.md), then verify with test cards
 
 ### M7 — Notifications (week 13)
 - Email (Resend/Postmark) + SMS (Twilio): confirmation, 24h/2h reminders (Cloud Tasks),

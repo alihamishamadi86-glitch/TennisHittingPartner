@@ -19,6 +19,7 @@ from app.schemas.bookings import (
     WaiverSignIn,
 )
 from app.services import bookings as service
+from app.services import payments as payment_service
 from app.services.booking_policy import (
     Action,
     Actor,
@@ -41,6 +42,7 @@ ERROR_STATUS = {
     "email_unverified": status.HTTP_409_CONFLICT,
     "profile_incomplete": status.HTTP_409_CONFLICT,
     "not_allowed": status.HTTP_409_CONFLICT,
+    "payment_required": status.HTTP_409_CONFLICT,
 }
 
 
@@ -80,8 +82,13 @@ async def booking_out(session: SessionDep, booking: Booking, viewer: User) -> Bo
             free_until=free_cancellation_until(booking.starts_at, service.policy()),
             fee_fraction_if_cancelled_now=outcome.fee_fraction,
         )
+    paid = await payment_service.succeeded_payment(session, booking.id)
     return BookingOut(
         id=booking.id,
+        currency=booking.currency,
+        price_cents=booking.price_cents,
+        paid_cents=(paid.amount_cents + paid.credit_applied_cents) if paid else 0,
+        refunded_cents=await payment_service.refunded_cents(session, booking.id),
         status=booking.status,
         starts_at=booking.starts_at,
         ends_at=booking.ends_at,
@@ -204,14 +211,6 @@ async def _act(
         raise _http_error(exc) from exc
     await commit_and_publish(session)
     return await booking_out(session, booking, user)
-
-
-@router.post("/bookings/{booking_id}/confirm")
-async def confirm_booking(
-    booking_id: uuid.UUID, user: CurrentUser, session: SessionDep
-) -> BookingOut:
-    """Confirm a held booking. Replaced by payment confirmation in M6."""
-    return await _act(booking_id, user, session, Action.CONFIRM)
 
 
 @router.post("/bookings/{booking_id}/cancel")

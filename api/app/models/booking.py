@@ -71,6 +71,10 @@ class Booking(TimestampMixin, Base):
     hold_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     client_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Price snapshot at booking time (minor units), so later price changes don't apply.
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="usd")
+    price_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    partner_pay_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancelled_by_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -732,26 +732,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/bookings/{booking_id}/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Confirm Booking
-         * @description Confirm a held booking. Replaced by payment confirmation in M6.
-         */
-        post: operations["confirm_booking_bookings__booking_id__confirm_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/bookings/{booking_id}/cancel": {
         parameters: {
             query?: never;
@@ -851,6 +831,95 @@ export interface paths {
         get: operations["reverse_geocode_geo_reverse_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payments Config */
+        get: operations["payments_config_payments_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bookings/{booking_id}/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Checkout
+         * @description Price a held booking (promo code, then account credit) and start payment.
+         */
+        post: operations["checkout_bookings__booking_id__checkout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Credits */
+        get: operations["my_credits_me_credits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/promo-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Promo Codes */
+        get: operations["list_promo_codes_admin_promo_codes_get"];
+        put?: never;
+        /** Create Promo Code */
+        post: operations["create_promo_code_admin_promo_codes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/promo-codes/{promo_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate Promo Code */
+        post: operations["deactivate_promo_code_admin_promo_codes__promo_id__deactivate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -984,6 +1053,14 @@ export interface components {
              */
             id: string;
             status: components["schemas"]["BookingStatus"];
+            /** Currency */
+            currency: string;
+            /** Price Cents */
+            price_cents: number;
+            /** Paid Cents */
+            paid_cents: number;
+            /** Refunded Cents */
+            refunded_cents: number;
             /**
              * Starts At
              * Format: date-time
@@ -1033,6 +1110,18 @@ export interface components {
             free_until: string;
             /** Fee Fraction If Cancelled Now */
             fee_fraction_if_cancelled_now: number;
+        };
+        /** CheckoutIn */
+        CheckoutIn: {
+            /** Promo Code */
+            promo_code?: string | null;
+        };
+        /** CheckoutOut */
+        CheckoutOut: {
+            booking: components["schemas"]["BookingOut"];
+            payment: components["schemas"]["PaymentOut"];
+            /** Client Secret */
+            client_secret: string | null;
         };
         /**
          * CityDiscoverIn
@@ -1184,6 +1273,40 @@ export interface components {
             name: string;
             /** Distance Km */
             distance_km?: number | null;
+        };
+        /** CreditOut */
+        CreditOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Remaining Cents */
+            remaining_cents: number;
+            reason: components["schemas"]["CreditReason"];
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * CreditReason
+         * @enum {string}
+         */
+        CreditReason: "rain_out" | "refund" | "goodwill";
+        /** CreditsOut */
+        CreditsOut: {
+            /** Currency */
+            currency: string;
+            /** Balance Cents */
+            balance_cents: number;
+            /** Credits */
+            credits: components["schemas"]["CreditOut"][];
         };
         /** DaySlotsOut */
         DaySlotsOut: {
@@ -1541,6 +1664,45 @@ export interface components {
          * @enum {string}
          */
         PartnerStatus: "draft" | "applied" | "screened" | "approved" | "rejected";
+        /** PaymentOut */
+        PaymentOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Provider */
+            provider: string;
+            status: components["schemas"]["PaymentStatus"];
+            /** Currency */
+            currency: string;
+            /** Price Cents */
+            price_cents: number;
+            /** Discount Cents */
+            discount_cents: number;
+            /** Credit Applied Cents */
+            credit_applied_cents: number;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /**
+         * PaymentStatus
+         * @enum {string}
+         */
+        PaymentStatus: "requires_payment" | "succeeded" | "failed" | "canceled";
+        /** PaymentsConfigOut */
+        PaymentsConfigOut: {
+            /** Provider */
+            provider: string;
+            /** Publishable Key */
+            publishable_key: string | null;
+            /** Currency */
+            currency: string;
+            /** Prices Cents */
+            prices_cents: {
+                [key: string]: number;
+            };
+        };
         /** PersonOut */
         PersonOut: {
             /**
@@ -1585,6 +1747,53 @@ export interface components {
          * @enum {string}
          */
         PlayStyle: "baseliner" | "all_court" | "serve_and_volley" | "counterpuncher";
+        /** PromoCodeIn */
+        PromoCodeIn: {
+            /** Code */
+            code: string;
+            /** Percent Off */
+            percent_off?: number | null;
+            /** Amount Off Cents */
+            amount_off_cents?: number | null;
+            /**
+             * First Booking Only
+             * @default false
+             */
+            first_booking_only: boolean;
+            /** Max Redemptions */
+            max_redemptions?: number | null;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** PromoCodeOut */
+        PromoCodeOut: {
+            /** Code */
+            code: string;
+            /** Percent Off */
+            percent_off?: number | null;
+            /** Amount Off Cents */
+            amount_off_cents?: number | null;
+            /**
+             * First Booking Only
+             * @default false
+             */
+            first_booking_only: boolean;
+            /** Max Redemptions */
+            max_redemptions?: number | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Currency */
+            currency: string;
+            /** Redemptions */
+            redemptions: number;
+            /** Active */
+            active: boolean;
+        };
         /** QuestionOut */
         QuestionOut: {
             /** Key */
@@ -3327,41 +3536,6 @@ export interface operations {
             };
         };
     };
-    confirm_booking_bookings__booking_id__confirm_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                booking_id: string;
-            };
-            cookie?: {
-                thp_access?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BookingOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     cancel_booking_bookings__booking_id__cancel_post: {
         parameters: {
             query?: never;
@@ -3576,6 +3750,203 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payments_config_payments_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentsConfigOut"];
+                };
+            };
+        };
+    };
+    checkout_bookings__booking_id__checkout_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                booking_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_credits_me_credits_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_promo_codes_admin_promo_codes_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCodeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_promo_code_admin_promo_codes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deactivate_promo_code_admin_promo_codes__promo_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                promo_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCodeOut"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -15,6 +15,7 @@ import {
   mapsLink,
   type Booking,
 } from "@/lib/bookings/types";
+import { formatMoney } from "@/lib/payments/money";
 import { formatNtrp } from "@/lib/profile/labels";
 
 
@@ -65,12 +66,22 @@ export function SessionCard({ booking, viewer }: { booking: Booking; viewer: "cl
         </a>
         {booking.club.address && ` · ${booking.club.address}`}
       </p>
+      {viewer === "client" && booking.paid_cents > 0 && (
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Paid {formatMoney(booking.paid_cents, booking.currency)}
+          {booking.refunded_cents > 0 && ` · Refunded ${formatMoney(booking.refunded_cents, booking.currency)}`}
+        </p>
+      )}
       {booking.note && <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">“{booking.note}”</p>}
       {booking.cancellation_reason && <p className="text-sm text-zinc-500">Reason: {booking.cancellation_reason}</p>}
       {booking.status === "cancelled_late" && viewer === "client" && (
         <p className="text-sm text-red-700 dark:text-red-400">A {Math.round((booking.cancellation_fee_fraction ?? 0) * 100)}% late-cancellation fee applies.</p>
       )}
-      {booking.credit_issued && <p className="text-sm text-sky-700 dark:text-sky-400">Credited for rebooking within 30 days.</p>}
+      {booking.credit_issued && viewer === "client" && (
+        <p className="text-sm text-sky-700 dark:text-sky-400">
+          {formatMoney(booking.paid_cents, booking.currency)} credited to your account for rebooking within 30 days.
+        </p>
+      )}
 
       {booking.actions.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -94,10 +105,8 @@ export function SessionCard({ booking, viewer }: { booking: Booking; viewer: "cl
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              {booking.actions.includes("confirm") && (
-                <Button type="button" onClick={() => act("confirm")} disabled={pending}>
-                  Confirm
-                </Button>
+              {booking.status === "held" && (
+                <span className="text-sm text-amber-800 dark:text-amber-300">Awaiting payment — released automatically if unpaid.</span>
               )}
               {booking.actions.includes("complete") && (
                 <Button type="button" onClick={() => act("complete")} disabled={pending}>

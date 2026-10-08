@@ -17,6 +17,7 @@ BOOKING_CONFIRMED = "booking.confirmed"
 BOOKING_CANCELLED = "booking.cancelled"
 BOOKING_COMPLETED = "booking.completed"
 BOOKING_RAINED_OUT = "booking.rained_out"
+PAYMENT_REFUND_REQUESTED = "payment.refund_requested"
 
 EVENT_TYPES: tuple[str, ...] = (
     SYSTEM_PING,
@@ -30,6 +31,7 @@ EVENT_TYPES: tuple[str, ...] = (
     BOOKING_CANCELLED,
     BOOKING_COMPLETED,
     BOOKING_RAINED_OUT,
+    PAYMENT_REFUND_REQUESTED,
 )
 
 

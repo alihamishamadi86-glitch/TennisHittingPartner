@@ -102,6 +102,18 @@ class Settings(BaseSettings):
     free_cancellation_hours: int = 12
     late_cancellation_fee_fraction: float = 0.5
 
+    # Prices in minor units per session length (minutes), and what the partner earns.
+    currency: str = "usd"
+    session_prices_cents: dict[int, int] = Field(default_factory=lambda: {60: 4500, 90: 6500})
+    partner_pay_cents: dict[int, int] = Field(default_factory=lambda: {60: 3000, 90: 4500})
+    rain_credit_days: int = 30
+
+    # Payments: "stripe" in the cloud; "fake" simulates payments for local dev and tests.
+    payment_provider: str = "fake"
+    stripe_secret_key: SecretStr = SecretStr("")
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: SecretStr = SecretStr("")
+
     # Minimum self-rated NTRP to apply as a hitting partner.
     min_partner_ntrp: float = 4.5
 
@@ -109,6 +121,14 @@ class Settings(BaseSettings):
     def _require_real_secrets_in_cloud(self) -> "Settings":
         if self.is_cloud and self.jwt_secret.get_secret_value().startswith("local-dev-only"):
             raise ValueError("JWT_SECRET must be set in staging/production")
+        if self.environment is Environment.PRODUCTION and self.payment_provider != "stripe":
+            raise ValueError("Production must use PAYMENT_PROVIDER=stripe")
+        if self.payment_provider == "stripe" and not (
+            self.stripe_secret_key.get_secret_value().strip() and self.stripe_publishable_key
+        ):
+            raise ValueError(
+                "PAYMENT_PROVIDER=stripe needs STRIPE_SECRET_KEY and the publishable key"
+            )
         return self
 
     @property

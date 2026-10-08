@@ -67,6 +67,28 @@ Works with no keys (free OSM services). Optional, recommended for production:
 - **Map tiles**: set `MAP_TILE_URL` / `MAP_TILE_ATTRIBUTION` on the web service; OSM's own tile
   server is not for production traffic.
 
+## Payments (M6)
+
+Payments run on a **fake gateway** (simulated checkout) until Stripe keys are configured.
+Production refuses to start with the fake gateway.
+
+1. Stripe Dashboard (test mode) → Developers → API keys: copy the publishable and secret keys.
+2. Developers → Webhooks → Add endpoint: `<api_url>/webhooks/stripe` (`terraform output -raw
+   api_url`), events `payment_intent.succeeded` and `payment_intent.payment_failed`. Copy the
+   signing secret (`whsec_…`).
+3. Store the secrets and switch the provider:
+   ```bash
+   printf '%s' "$STRIPE_SECRET_KEY" | gcloud secrets versions add stripe-secret-key --data-file=-
+   printf '%s' "$STRIPE_WEBHOOK_SECRET" | gcloud secrets versions add stripe-webhook-secret --data-file=-
+   ```
+   In `environments/staging.tfvars` set `payment_provider = "stripe"` and
+   `stripe_publishable_key = "pk_test_…"`, then `terraform apply` and redeploy.
+
+Locally: put `PAYMENT_PROVIDER=stripe`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` and
+`STRIPE_WEBHOOK_SECRET` in the root `.env`, then forward webhooks with the Stripe CLI:
+`stripe listen --forward-to localhost:8000/webhooks/stripe` (it prints the `whsec_…` to use).
+Test cards: `4242 4242 4242 4242` (success), `4000 0025 0000 3155` (3-D Secure).
+
 ## First admin
 
 Register the account in the web app, then promote it:
