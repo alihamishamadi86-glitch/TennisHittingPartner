@@ -76,10 +76,16 @@ class ClubOut(BaseModel):
     distance_km: float | None = None
 
 
-class PartnerClubsIn(BaseModel):
+class MyClubsIn(BaseModel):
     club_ids: list[uuid.UUID] = Field(max_length=20)
 
 
-class PartnerClubsOut(BaseModel):
+class MyClubOut(ClubOut):
+    # Approved partners / players who also list this court (excluding you).
+    partner_count: int
+    player_count: int
+
+
+class MyClubsOut(BaseModel):
     club_ids: list[uuid.UUID]
-    clubs: list[ClubOut]
+    clubs: list[MyClubOut]

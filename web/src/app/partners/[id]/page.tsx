@@ -17,10 +17,11 @@ export default async function PartnerPage(props: PageProps<"/partners/[id]">) {
   const duration = durationParam === "90" ? 90 : 60;
   const user = await requireUser(`/partners/${id}`);
   const api = await authedApi();
-  const [{ data: partner }, { data: slots }, { data: paymentsConfig }] = await Promise.all([
+  const [{ data: partner }, { data: slots }, { data: paymentsConfig }, myClubIds] = await Promise.all([
     api.GET("/partners/{partner_id}", { params: { path: { partner_id: id } } }),
     api.GET("/partners/{partner_id}/slots", { params: { path: { partner_id: id }, query: { days: 7, duration } } }),
     api.GET("/payments/config"),
+    user.role === "client" ? api.GET("/me/clubs").then((r) => r.data?.club_ids ?? []) : Promise.resolve<string[]>([]),
   ]);
   if (!partner) notFound();
 
@@ -67,7 +68,12 @@ export default async function PartnerPage(props: PageProps<"/partners/[id]">) {
               <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-zinc-500">Plays at</h2>
               <ul className="flex flex-col gap-1 text-sm text-zinc-800 dark:text-zinc-200">
                 {partner.clubs.map((c) => (
-                  <li key={c.id}>{c.name}</li>
+                  <li key={c.id}>
+                    {c.name}
+                    {myClubIds.includes(c.id) && (
+                      <span className="ml-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">Your court</span>
+                    )}
+                  </li>
                 ))}
               </ul>
             </div>

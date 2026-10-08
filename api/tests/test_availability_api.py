@@ -39,7 +39,7 @@ async def make_partner(  # type: ignore[no-untyped-def]
 ) -> tuple[AsyncClient, str]:
     partner = await make_client("partner")
     await partner.put("/me/partner-profile", json=PARTNER_PROFILE)
-    await partner.put("/me/partner-clubs", json={"club_ids": clubs})
+    await partner.put("/me/clubs", json={"club_ids": clubs})
     if schedule is not None:
         saved = await partner.put(
             "/me/availability", json={"timezone": "America/Chicago", "windows": schedule}
@@ -260,3 +260,65 @@ async def test_public_partner_page_and_slots(
     assert len(slots.json()["days"]) == 5
     assert (await client.get(f"/partners/{pending}")).status_code == 404
     assert (await client.get(f"/partners/{pending}/slots")).status_code == 404
+
+
+# --- Suggestions from the player's courts -----------------------------------------------
+
+
+async def test_suggestions_come_from_the_players_courts(
+    make_client: MakeClient, geocoder, sources, deliver
+) -> None:
+    client = await make_client("client")
+    downtown, north = await club_ids(client, deliver)  # ~2.2 km apart
+    _, at_my_court = await make_partner(make_client, [downtown], level=4.0)
+    _, nearby = await make_partner(make_client, [north], level=5.0)
+    await make_partner(make_client, [downtown], approved=False)
+
+    nothing_saved = (await client.get("/partners/suggested")).json()
+    await client.put("/me/clubs", json={"club_ids": [downtown]})
+    within_5 = (await client.get("/partners/suggested")).json()
+    same_court = (await client.get("/partners/suggested", params={"radius_km": 0})).json()
+    advanced = (await client.get("/partners/suggested", params={"min_level": 4.5})).json()
+
+    assert nothing_saved == []
+    assert [p["user_id"] for p in within_5] == [at_my_court, nearby]  # same court first
+    assert within_5[0]["clubs"][0] == {
+        "id": downtown,
+        "name": "Austin Tennis Center",
+        "distance_km": 0.0,
+        "near_court": "Austin Tennis Center",
+    }
+    assert within_5[1]["clubs"][0]["near_court"] == "Austin Tennis Center"
+    assert within_5[1]["clubs"][0]["distance_km"] > 2
+    assert [p["user_id"] for p in same_court] == [at_my_court]
+    assert [p["user_id"] for p in advanced] == [nearby]
+
+
+async def test_suggestions_rank_bookable_partners_first(
+    make_client: MakeClient, geocoder, sources, deliver
+) -> None:
+    client = await make_client("client")
+    downtown, north = await club_ids(client, deliver)
+    _, weekends = await make_partner(
+        make_client, [downtown], schedule=[{"weekday": 5, "start": "10:00", "end": "12:00"}]
+    )
+    _, mornings = await make_partner(make_client, [north])
+    await client.put("/me/clubs", json={"club_ids": [downtown, north]})
+    day = local_today() + timedelta(days=3)
+    while day.weekday() >= 5:
+        day += timedelta(days=1)
+
+    results = (
+        await client.get("/partners/suggested", params={"date": day.isoformat(), "radius_km": 0})
+    ).json()
+
+    assert [p["user_id"] for p in results] == [mornings, weekends]
+    assert results[0]["clubs"][0]["near_court"] == "Tennis courts"
+    assert results[1]["slots"] == []
+
+
+async def test_only_players_get_suggestions(make_client: MakeClient) -> None:
+    partner = await make_client("partner")
+    client = await make_client("client")
+    assert (await partner.get("/partners/suggested")).status_code == 403
+    assert (await client.get("/partners/suggested", params={"radius_km": 30})).status_code == 422

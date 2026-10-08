@@ -133,13 +133,13 @@ class Club(TimestampMixin, Base):
     __table_args__ = (Index("ix_clubs_location", "location", postgresql_using="gist"),)
 
 
-class PartnerClub(Base):
-    """Clubs a hitting partner is willing to play at."""
+class UserClub(Base):
+    """A user's courts: where a partner is willing to play, or where a player likes to play."""
 
-    __tablename__ = "partner_clubs"
+    __tablename__ = "user_clubs"
 
-    partner_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("partner_profiles.user_id", ondelete="CASCADE"), primary_key=True
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     club_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("clubs.id", ondelete="CASCADE"), primary_key=True, index=True

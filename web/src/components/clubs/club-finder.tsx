@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { Alert } from "@/components/ui/alert";
@@ -33,12 +34,12 @@ const RADII_KM = [2, 5, 10, 25] as const;
 export function ClubFinder({
   initialLocation,
   tiles,
-  partnerClubIds,
+  myClubIds,
 }: {
   initialLocation: Location | null;
   tiles: MapTiles;
-  /** Present for partners: the clubs they already play at. */
-  partnerClubIds?: string[];
+  /** Present for players and partners: their saved courts, which they can add to here. */
+  myClubIds?: string[];
 }) {
   const [location, setLocation] = useState<Location>(
     initialLocation ?? { city: "", region: "", postal_code: "", country_code: "US" },
@@ -53,7 +54,7 @@ export function ClubFinder({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [kind, setKind] = useState<KindFilter>("all");
-  const [picked, setPicked] = useState<Set<string>>(new Set(partnerClubIds ?? []));
+  const [picked, setPicked] = useState<Set<string>>(new Set(myClubIds ?? []));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const searchToken = useRef(0);
   const radiusRef = useRef(5); // read inside the async search without re-creating it
@@ -190,7 +191,7 @@ export function ClubFinder({
 
   async function savePicks() {
     setSaveState("saving");
-    const { error } = await apiBrowser.PUT("/me/partner-clubs", { body: { club_ids: [...picked] } });
+    const { error } = await apiBrowser.PUT("/me/clubs", { body: { club_ids: [...picked] } });
     if (error) {
       setError(errorMessage(error));
       setSaveState("idle");
@@ -208,7 +209,7 @@ export function ClubFinder({
   }
 
   const center: [number, number] = focus ? [focus.lat, focus.lon] : city ? [city.lat, city.lon] : [39.5, -98.35];
-  const isPartner = partnerClubIds !== undefined;
+  const canPick = myClubIds !== undefined;
 
   return (
     <div className="flex flex-col gap-5">
@@ -307,13 +308,21 @@ export function ClubFinder({
                 </select>
               </div>
             </div>
-            {isPartner && (
+            {canPick && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                 <p className="text-sm text-emerald-900 dark:text-emerald-200">
-                  {picked.size === 0 ? "Tick the places you can play at." : `${picked.size} selected`}
+                  {picked.size === 0 ? "Tick the places you play at." : `${picked.size} selected`}
+                  {saveState === "saved" && (
+                    <>
+                      {" · "}
+                      <Link href="/courts" className="font-semibold underline">
+                        View my courts
+                      </Link>
+                    </>
+                  )}
                 </p>
                 <Button type="button" onClick={savePicks} disabled={saveState === "saving"}>
-                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save my clubs"}
+                  {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save my courts"}
                 </Button>
               </div>
             )}
@@ -324,7 +333,7 @@ export function ClubFinder({
                   club={club}
                   selected={club.id === selectedId}
                   onSelect={() => setSelectedId(club.id)}
-                  partnerPick={isPartner ? { checked: picked.has(club.id), onToggle: () => togglePick(club.id) } : undefined}
+                  courtPick={canPick ? { checked: picked.has(club.id), onToggle: () => togglePick(club.id) } : undefined}
                 />
               ))}
               {!searching && visible.length === 0 && (

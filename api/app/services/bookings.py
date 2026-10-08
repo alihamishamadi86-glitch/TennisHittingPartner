@@ -29,10 +29,10 @@ from app.models import (
     BookingStatus,
     ClientProfile,
     Club,
-    PartnerClub,
     PartnerProfile,
     PartnerStatus,
     User,
+    UserClub,
     UserRole,
     WaiverSignature,
     WaiverVersion,
@@ -187,8 +187,8 @@ async def create_hold(
         raise BookingError("partner_unavailable", "This partner isn't taking bookings")
     partner_club = await session.scalar(
         select(Club)
-        .join(PartnerClub, PartnerClub.club_id == Club.id)
-        .where(PartnerClub.partner_id == partner_id, Club.id == club_id, Club.active.is_(True))
+        .join(UserClub, UserClub.club_id == Club.id)
+        .where(UserClub.user_id == partner_id, Club.id == club_id, Club.active.is_(True))
     )
     if partner_club is None:
         raise BookingError("invalid_club", "This partner doesn't play at that club")

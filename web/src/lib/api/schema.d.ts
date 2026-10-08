@@ -492,20 +492,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/me/partner-clubs": {
+    "/me/clubs": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Partner Clubs */
-        get: operations["get_partner_clubs_me_partner_clubs_get"];
         /**
-         * Put Partner Clubs
-         * @description Replace the set of clubs this partner plays at.
+         * Get My Clubs
+         * @description My courts: where a partner plays, or where a player likes to play (by name).
          */
-        put: operations["put_partner_clubs_me_partner_clubs_put"];
+        get: operations["get_my_clubs_me_clubs_get"];
+        /**
+         * Put My Clubs
+         * @description Replace my courts. Partners are booked at these; players get partners suggested
+         *     for them (GET /partners/suggested).
+         */
+        put: operations["put_my_clubs_me_clubs_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -618,6 +622,27 @@ export interface paths {
          *     bookable start times; `next_slot` is the soonest one in the next two weeks.
          */
         get: operations["search_partners_partners_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/partners/suggested": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggested Partners
+         * @description Partners for the player's saved courts (PUT /me/clubs): those who play at one of
+         *     them, then those within `radius_km`. Each club says which of my courts it's near.
+         */
+        get: operations["suggested_partners_partners_suggested_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1273,6 +1298,8 @@ export interface components {
             name: string;
             /** Distance Km */
             distance_km?: number | null;
+            /** Near Court */
+            near_court?: string | null;
         };
         /** CreditOut */
         CreditOut: {
@@ -1436,6 +1463,58 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** MyClubOut */
+        MyClubOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * City Id
+             * Format: uuid
+             */
+            city_id: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["ClubKind"];
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
+            /** Address */
+            address: string | null;
+            /** Website */
+            website: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Court Count */
+            court_count: number | null;
+            /** Surface */
+            surface: string | null;
+            /** Access */
+            access: string | null;
+            /** Lit */
+            lit: boolean | null;
+            /** Distance Km */
+            distance_km?: number | null;
+            /** Partner Count */
+            partner_count: number;
+            /** Player Count */
+            player_count: number;
+        };
+        /** MyClubsIn */
+        MyClubsIn: {
+            /** Club Ids */
+            club_ids: string[];
+        };
+        /** MyClubsOut */
+        MyClubsOut: {
+            /** Club Ids */
+            club_ids: string[];
+            /** Clubs */
+            clubs: components["schemas"]["MyClubOut"][];
+        };
         /** PartnerApplicationDetailOut */
         PartnerApplicationDetailOut: {
             /**
@@ -1525,18 +1604,6 @@ export interface components {
             slots: string[];
             /** Next Slot */
             next_slot: string | null;
-        };
-        /** PartnerClubsIn */
-        PartnerClubsIn: {
-            /** Club Ids */
-            club_ids: string[];
-        };
-        /** PartnerClubsOut */
-        PartnerClubsOut: {
-            /** Club Ids */
-            club_ids: string[];
-            /** Clubs */
-            clubs: components["schemas"]["ClubOut"][];
         };
         /** PartnerDecisionIn */
         PartnerDecisionIn: {
@@ -2953,7 +3020,7 @@ export interface operations {
             };
         };
     };
-    get_partner_clubs_me_partner_clubs_get: {
+    get_my_clubs_me_clubs_get: {
         parameters: {
             query?: never;
             header?: {
@@ -2972,7 +3039,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PartnerClubsOut"];
+                    "application/json": components["schemas"]["MyClubsOut"];
                 };
             };
             /** @description Validation Error */
@@ -2986,7 +3053,7 @@ export interface operations {
             };
         };
     };
-    put_partner_clubs_me_partner_clubs_put: {
+    put_my_clubs_me_clubs_put: {
         parameters: {
             query?: never;
             header?: {
@@ -2999,7 +3066,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PartnerClubsIn"];
+                "application/json": components["schemas"]["MyClubsIn"];
             };
         };
         responses: {
@@ -3009,7 +3076,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PartnerClubsOut"];
+                    "application/json": components["schemas"]["MyClubsOut"];
                 };
             };
             /** @description Validation Error */
@@ -3246,6 +3313,46 @@ export interface operations {
                 duration?: number;
                 min_level?: number | string | null;
                 club_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerCardOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggested_partners_partners_suggested_get: {
+        parameters: {
+            query?: {
+                /** @description 0 = only partners at one of my courts */
+                radius_km?: number;
+                date?: string | null;
+                /** @description Session length in minutes (60 or 90) */
+                duration?: number;
+                min_level?: number | string | null;
             };
             header?: {
                 authorization?: string | null;

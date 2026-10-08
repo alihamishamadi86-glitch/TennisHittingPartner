@@ -5,11 +5,12 @@ import logging
 import re
 import unicodedata
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from geoalchemy2.functions import ST_Distance, ST_DWithin, ST_MakePoint, ST_SetSRID
 from geoalchemy2.types import Geography
-from sqlalchemy import ColumnElement, Float, cast, delete, null, select, update
+from sqlalchemy import ColumnElement, Float, and_, cast, delete, func, null, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,14 +18,25 @@ from app.core.config import get_settings
 from app.events.catalog import CLUBS_DISCOVERY_REQUESTED
 from app.events.outbox import record_event
 from app.integrations.geo import BBox, GeocodedCity, Geocoder, GeoProviderError, PlaceSource
-from app.models import City, CityAlias, Club, DiscoveryStatus, PartnerClub, PostalCode, User
+from app.models import (
+    City,
+    CityAlias,
+    Club,
+    DiscoveryStatus,
+    PartnerProfile,
+    PartnerStatus,
+    PostalCode,
+    User,
+    UserClub,
+    UserRole,
+)
 from app.services.club_merge import Site, build_sites
 
 logger = logging.getLogger(__name__)
 
 # A discovery stuck in pending/running longer than this is re-queued on the next request.
 STUCK_AFTER = timedelta(minutes=15)
-MAX_PARTNER_CLUBS = 20
+MAX_MY_CLUBS = 20
 GEOCODER_RETRY_DELAY_S = 1.0
 
 
@@ -309,28 +321,72 @@ async def list_clubs(
     return [(club, dist) for club, dist in (await session.execute(stmt)).all()]
 
 
-async def partner_club_ids(session: AsyncSession, partner_id: uuid.UUID) -> list[uuid.UUID]:
+async def my_club_ids(session: AsyncSession, user_id: uuid.UUID) -> list[uuid.UUID]:
     return list(
         await session.scalars(
-            select(PartnerClub.club_id).where(PartnerClub.partner_id == partner_id)
+            select(UserClub.club_id)
+            .join(Club, Club.id == UserClub.club_id)
+            .where(UserClub.user_id == user_id)
+            .order_by(Club.name, Club.id)
         )
     )
 
 
-async def set_partner_clubs(
-    session: AsyncSession, partner: User, club_ids: list[uuid.UUID]
+async def set_my_clubs(
+    session: AsyncSession, user: User, club_ids: list[uuid.UUID]
 ) -> list[uuid.UUID]:
+    """Replace the user's courts. Courts that dropped out of discovery stay if already saved."""
     unique = list(dict.fromkeys(club_ids))
-    if len(unique) > MAX_PARTNER_CLUBS:
-        raise UnknownClubError(f"Choose at most {MAX_PARTNER_CLUBS} clubs")
-    if unique:
+    if len(unique) > MAX_MY_CLUBS:
+        raise UnknownClubError(f"Choose at most {MAX_MY_CLUBS} courts")
+    kept = set(await my_club_ids(session, user.id))
+    new = [club_id for club_id in unique if club_id not in kept]
+    if new:
         found = set(
-            await session.scalars(select(Club.id).where(Club.id.in_(unique), Club.active.is_(True)))
+            await session.scalars(select(Club.id).where(Club.id.in_(new), Club.active.is_(True)))
         )
-        if found != set(unique):
+        if found != set(new):
             raise UnknownClubError("Unknown club")
-    await session.execute(delete(PartnerClub).where(PartnerClub.partner_id == partner.id))
-    for club_id in unique:
-        session.add(PartnerClub(partner_id=partner.id, club_id=club_id))
+    await session.execute(
+        delete(UserClub).where(UserClub.user_id == user.id, UserClub.club_id.not_in(unique))
+    )
+    for club_id in new:
+        session.add(UserClub(user_id=user.id, club_id=club_id))
     await session.flush()
     return unique
+
+
+@dataclass
+class CourtCounts:
+    partners: int = 0
+    players: int = 0
+
+
+async def court_counts(
+    session: AsyncSession, club_ids: list[uuid.UUID], exclude_user_id: uuid.UUID
+) -> dict[uuid.UUID, CourtCounts]:
+    """Approved partners and players who list each court (not counting the asking user)."""
+    counts = {club_id: CourtCounts() for club_id in club_ids}
+    if not club_ids:
+        return counts
+    approved_partner = and_(
+        User.role == UserRole.PARTNER, PartnerProfile.status == PartnerStatus.APPROVED
+    )
+    rows = await session.execute(
+        select(
+            UserClub.club_id,
+            func.count().filter(approved_partner),
+            func.count().filter(User.role == UserRole.CLIENT),
+        )
+        .join(User, User.id == UserClub.user_id)
+        .outerjoin(PartnerProfile, PartnerProfile.user_id == UserClub.user_id)
+        .where(
+            UserClub.club_id.in_(club_ids),
+            UserClub.user_id != exclude_user_id,
+            User.is_active.is_(True),
+        )
+        .group_by(UserClub.club_id)
+    )
+    for club_id, partners, players in rows.all():
+        counts[club_id] = CourtCounts(partners=partners, players=players)
+    return counts

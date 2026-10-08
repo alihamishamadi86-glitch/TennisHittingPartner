@@ -5,6 +5,8 @@ export type Focus = components["schemas"]["FocusOut"];
 /** Where results are centred on the map: a postcode or the user's own position. */
 export type MapFocus = { label: string; lat: number; lon: number };
 export type Club = components["schemas"]["ClubOut"];
+/** One of "my courts", with how many other partners / players list it. */
+export type MyClub = components["schemas"]["MyClubOut"];
 export type ClubKind = components["schemas"]["ClubKind"];
 
 export type MapTiles = { url: string; attribution: string };

@@ -52,7 +52,7 @@ async def clean_tables() -> AsyncIterator[None]:
             text(
                 "TRUNCATE outbox_events, processed_events, system_pings, users, auth_identities,"
                 " refresh_tokens, email_tokens, client_profiles, partner_profiles,"
-                " partner_verifications, cities, city_aliases, clubs, partner_clubs, postal_codes,"
+                " partner_verifications, cities, city_aliases, clubs, user_clubs, postal_codes,"
                 " availability_rules, availability_exceptions, bookings, waiver_signatures,"
                 " payments, refunds, credits, promo_codes, promo_redemptions, stripe_events"
                 " RESTART IDENTITY CASCADE"

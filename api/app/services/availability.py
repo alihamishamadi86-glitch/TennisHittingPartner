@@ -12,6 +12,7 @@ from geoalchemy2.functions import ST_Distance, ST_DWithin, ST_MakePoint, ST_SetS
 from geoalchemy2.types import Geography
 from sqlalchemy import ColumnElement, and_, cast, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.config import get_settings
 from app.models import (
@@ -21,10 +22,10 @@ from app.models import (
     BookingStatus,
     Club,
     ExceptionKind,
-    PartnerClub,
     PartnerProfile,
     PartnerStatus,
     User,
+    UserClub,
 )
 from app.services.slots import DateException, WeeklyWindow, generate_slots
 
@@ -256,6 +257,8 @@ class NearbyClub:
     id: uuid.UUID
     name: str
     distance_m: float
+    # For suggestions: the player's own court this club is at (distance 0) or near.
+    near_court: str | None = None
 
 
 @dataclass
@@ -296,8 +299,8 @@ async def search_partners(
     query = (
         select(PartnerProfile, User, Club.id, Club.name, distance)
         .join(User, User.id == PartnerProfile.user_id)
-        .join(PartnerClub, PartnerClub.partner_id == PartnerProfile.user_id)
-        .join(Club, Club.id == PartnerClub.club_id)
+        .join(UserClub, UserClub.user_id == PartnerProfile.user_id)
+        .join(Club, Club.id == UserClub.club_id)
         .where(
             PartnerProfile.status == PartnerStatus.APPROVED,
             PartnerProfile.timezone.is_not(None),
@@ -316,7 +319,63 @@ async def search_partners(
     for profile, user, c_id, c_name, dist in (await session.execute(query)).all():
         entry = found.setdefault(profile.user_id, (profile, user, []))
         entry[2].append(NearbyClub(c_id, c_name, float(dist)))
+    return await _with_slots(session, found, day, duration_minutes, now, limit)
 
+
+async def suggest_partners(
+    session: AsyncSession,
+    *,
+    player_id: uuid.UUID,
+    radius_km: float,
+    day: date | None,
+    duration_minutes: int,
+    min_level: Decimal | None,
+    limit: int = 50,
+    now: datetime | None = None,
+) -> list[PartnerMatch]:
+    """Approved partners who play at the player's courts (or within `radius_km` of one),
+    ranked like search: bookable first, then same court before nearby, then level."""
+    now = now or _now()
+    mine, theirs = aliased(Club), aliased(Club)
+    my_link, their_link = aliased(UserClub), aliased(UserClub)
+    distance = ST_Distance(theirs.location, mine.location)
+    query = (
+        select(PartnerProfile, User, theirs.id, theirs.name, mine.name, distance)
+        .join(User, User.id == PartnerProfile.user_id)
+        .join(their_link, their_link.user_id == PartnerProfile.user_id)
+        .join(theirs, theirs.id == their_link.club_id)
+        .join(mine, ST_DWithin(theirs.location, mine.location, radius_km * 1000))
+        .join(my_link, and_(my_link.club_id == mine.id, my_link.user_id == player_id))
+        .where(
+            PartnerProfile.status == PartnerStatus.APPROVED,
+            PartnerProfile.timezone.is_not(None),
+            PartnerProfile.user_id != player_id,
+            User.is_active.is_(True),
+            theirs.active.is_(True),
+        )
+        .order_by(distance, mine.name)
+    )
+    if min_level is not None:
+        query = query.where(PartnerProfile.verified_ntrp_rating >= min_level)
+
+    found: dict[uuid.UUID, tuple[PartnerProfile, User, list[NearbyClub]]] = {}
+    for profile, user, c_id, c_name, near, dist in (await session.execute(query)).all():
+        clubs = found.setdefault(profile.user_id, (profile, user, []))[2]
+        if all(c.id != c_id for c in clubs):  # nearest of the player's courts wins
+            clubs.append(NearbyClub(c_id, c_name, float(dist), near_court=near))
+    return await _with_slots(session, found, day, duration_minutes, now, limit)
+
+
+async def _with_slots(
+    session: AsyncSession,
+    found: dict[uuid.UUID, tuple[PartnerProfile, User, list[NearbyClub]]],
+    day: date | None,
+    duration_minutes: int,
+    now: datetime,
+    limit: int,
+) -> list[PartnerMatch]:
+    """Attach open slots to candidate partners (clubs nearest first) and rank them:
+    open slots on `day` (or soonest availability), then distance, then level."""
     if not found:
         return []
     profiles = [entry[0] for entry in found.values()]
@@ -354,8 +413,8 @@ async def partner_clubs(session: AsyncSession, partner_id: uuid.UUID) -> list[Cl
     return list(
         await session.scalars(
             select(Club)
-            .join(PartnerClub, PartnerClub.club_id == Club.id)
-            .where(PartnerClub.partner_id == partner_id, Club.active.is_(True))
+            .join(UserClub, UserClub.club_id == Club.id)
+            .where(UserClub.user_id == partner_id, Club.active.is_(True))
             .order_by(Club.name)
         )
     )

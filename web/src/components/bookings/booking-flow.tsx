@@ -39,6 +39,7 @@ export function BookingFlow({
   emailVerified,
   userName,
   paymentsConfig,
+  myClubIds,
 }: {
   partner: PartnerPublic;
   startsAt: string;
@@ -47,8 +48,12 @@ export function BookingFlow({
   emailVerified: boolean;
   userName: string;
   paymentsConfig: PaymentsConfig;
+  /** The player's saved courts: one the partner also plays at is picked by default. */
+  myClubIds: string[];
 }) {
-  const [clubId, setClubId] = useState(partner.clubs[0]?.id ?? "");
+  const [clubId, setClubId] = useState(
+    (partner.clubs.find((club) => myClubIds.includes(club.id)) ?? partner.clubs[0])?.id ?? "",
+  );
   const [note, setNote] = useState("");
   const [waiverSigned, setWaiverSigned] = useState(!waiver || waiver.signed);
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -172,6 +177,7 @@ export function BookingFlow({
                   className="h-4 w-4 accent-emerald-600"
                 />
                 {club.name}
+                {myClubIds.includes(club.id) && <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Your court</span>}
               </label>
             ))}
           </fieldset>

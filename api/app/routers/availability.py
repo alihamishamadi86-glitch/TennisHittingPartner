@@ -26,6 +26,7 @@ from app.services.slots import group_by_local_date
 router = APIRouter(tags=["availability"])
 
 PartnerUser = Annotated[User, Depends(require_roles(UserRole.PARTNER))]
+ClientUser = Annotated[User, Depends(require_roles(UserRole.CLIENT))]
 Duration = Annotated[int, Query(description="Session length in minutes (60 or 90)")]
 
 
@@ -190,27 +191,58 @@ async def search_partners(
         min_level=min_level,
         club_id=club_id,
     )
-    return [
-        PartnerCardOut(
-            user_id=m.user.id,
-            full_name=m.user.full_name,
-            avatar_url=m.user.avatar_url,
-            ntrp_rating=m.profile.verified_ntrp_rating,
-            background=m.profile.background,
-            play_style=m.profile.play_style,
-            years_playing=m.profile.years_playing,
-            bio=m.profile.bio[:280],
-            timezone=m.profile.timezone or "UTC",
-            distance_km=round(m.distance_m / 1000, 1),
-            clubs=[
-                ClubRefOut(id=c.id, name=c.name, distance_km=round(c.distance_m / 1000, 1))
-                for c in m.clubs
-            ],
-            slots=m.slots,
-            next_slot=m.next_slot,
-        )
-        for m in matches
-    ]
+    return [_card(m) for m in matches]
+
+
+@router.get("/partners/suggested")
+async def suggested_partners(
+    user: ClientUser,
+    session: SessionDep,
+    radius_km: Annotated[
+        float, Query(ge=0, le=25, description="0 = only partners at one of my courts")
+    ] = 5,
+    on: Annotated[date | None, Query(alias="date")] = None,
+    duration: Duration = 60,
+    min_level: Annotated[Decimal | None, Query(ge=1.5, le=7.0)] = None,
+) -> list[PartnerCardOut]:
+    """Partners for the player's saved courts (PUT /me/clubs): those who play at one of
+    them, then those within `radius_km`. Each club says which of my courts it's near."""
+    _check_duration(duration)
+    matches = await service.suggest_partners(
+        session,
+        player_id=user.id,
+        radius_km=radius_km,
+        day=on,
+        duration_minutes=duration,
+        min_level=min_level,
+    )
+    return [_card(m) for m in matches]
+
+
+def _card(m: service.PartnerMatch) -> PartnerCardOut:
+    return PartnerCardOut(
+        user_id=m.user.id,
+        full_name=m.user.full_name,
+        avatar_url=m.user.avatar_url,
+        ntrp_rating=m.profile.verified_ntrp_rating,
+        background=m.profile.background,
+        play_style=m.profile.play_style,
+        years_playing=m.profile.years_playing,
+        bio=m.profile.bio[:280],
+        timezone=m.profile.timezone or "UTC",
+        distance_km=round(m.distance_m / 1000, 1),
+        clubs=[
+            ClubRefOut(
+                id=c.id,
+                name=c.name,
+                distance_km=round(c.distance_m / 1000, 1),
+                near_court=c.near_court,
+            )
+            for c in m.clubs
+        ],
+        slots=m.slots,
+        next_slot=m.next_slot,
+    )
 
 
 async def _approved_partner(

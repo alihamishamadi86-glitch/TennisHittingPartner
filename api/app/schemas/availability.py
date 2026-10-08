@@ -104,6 +104,8 @@ class ClubRefOut(BaseModel):
     id: uuid.UUID
     name: str
     distance_km: float | None = None
+    # Suggestions only: the player's court this club is at (distance 0) or near.
+    near_court: str | None = None
 
 
 class PartnerCardOut(BaseModel):

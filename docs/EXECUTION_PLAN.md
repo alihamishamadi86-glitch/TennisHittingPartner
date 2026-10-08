@@ -17,6 +17,7 @@ Google Cloud (Cloud Run, Cloud SQL Postgres + PostGIS, Pub/Sub, Cloud Tasks).
 | M4 | Availability & partner search | ✅ Code complete |
 | M5 | Booking core | ✅ Code complete |
 | M6 | Payments & policies | ✅ Code complete — Stripe keys pending |
+| M6.5 | My courts & court-based partner suggestions | ✅ Code complete |
 | M7 | Notifications | ⬜ |
 | M8 | Payouts, reviews, admin, retention | ⬜ |
 
@@ -123,7 +124,7 @@ An onboarding wizard collects the profile; booking is gated until it is complete
 
 - A short questionnaire suggests an NTRP rating to curb inflation.
 - Matching rule: partner level ≥ client level (+ configurable margin).
-- **Tables:** `client_profiles`, `partner_profiles`, `partner_clubs`, `partner_verifications`.
+- **Tables:** `client_profiles`, `partner_profiles`, `user_clubs` (was `partner_clubs`), `partner_verifications`.
 - **Endpoints:** `PUT /me/client-profile`, `PUT /me/partner-profile`, `POST /me/photo-upload-url`,
   `GET /admin/partners?status=applied`, `POST /admin/partners/{id}/verify`.
 
@@ -381,6 +382,28 @@ retries with city + country.
 - [x] 213 backend tests; browser-verified promo → simulated pay → confirmed → cancel → refund
   → email, and rain-out → credit balance
 - [ ] Stripe test keys + webhook endpoint (infra/README.md), then verify with test cards
+
+### M6.5 — My courts & court-based suggestions
+
+Players can now save courts too (before, only partners could), and get partners suggested
+from them. A "My courts" page shows each user their own courts.
+
+**Status (2026-10-08):**
+- [x] `partner_clubs` → `user_clubs(user_id, club_id)` for players and partners (migration
+  0009 carries partner picks over; downgrade keeps only partners' rows)
+- [x] `GET|PUT /me/clubs` replaces `/me/partner-clubs`: courts sorted by name, each with how many
+  *other* approved partners / players list it. Partners still need a profile first; players
+  don't. A saved court that later drops out of discovery can be kept, but not newly added
+- [x] `GET /partners/suggested` (players): approved partners at one of my courts, or with a
+  court within `radius_km` (0–25, default 5; 0 = same courts only) of one. Same ranking as
+  search (bookable → distance → level); each club carries `near_court`, the player's court
+  it's at (0 km) or near
+- [x] Next.js: "I play here" in the court finder for both roles; `/courts` (list + map, who
+  plays there, remove with undo, "Find partners at my courts"); partner search gets
+  "At my courts" / "Near me" tabs (`?view=`), defaulting to courts when the player has some;
+  booking preselects and labels the player's court; dashboard step "Save your courts"
+- [x] 218 backend tests; empty states checked in the browser, filled pages checked
+  server-rendered as a test player
 
 ### M7 — Notifications (week 13)
 - Email (Resend/Postmark) + SMS (Twilio): confirmation, 24h/2h reminders (Cloud Tasks),

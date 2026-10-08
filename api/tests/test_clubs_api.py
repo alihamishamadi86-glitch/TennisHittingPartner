@@ -14,7 +14,7 @@ from app.events.registry import dispatch
 from app.integrations.geo import (
     GeoProviderError,
 )
-from app.models import City
+from app.models import City, Club, PartnerProfile, PartnerStatus
 from tests.geo_fixtures import PLACES, FakeGeocoder
 from tests.test_club_merge import BASE_LAT, BASE_LON
 from tests.test_profiles import PARTNER_PROFILE
@@ -291,7 +291,7 @@ async def test_stale_cities_are_refreshed_by_scheduled_task(
     assert (await client.get(f"/cities/{city['id']}")).json()["status"] == "ready"
 
 
-# --- Partner clubs ----------------------------------------------------------------------
+# --- My courts -------------------------------------------------------------------------
 
 
 async def test_partner_selects_clubs(make_client: MakeClient, geocoder, sources, deliver) -> None:
@@ -302,22 +302,83 @@ async def test_partner_selects_clubs(make_client: MakeClient, geocoder, sources,
         c["id"] for c in (await partner.get("/clubs", params={"city_id": city["id"]})).json()
     ]
 
-    no_profile = await partner.put("/me/partner-clubs", json={"club_ids": club_ids})
+    no_profile = await partner.put("/me/clubs", json={"club_ids": club_ids})
     await partner.put("/me/partner-profile", json=PARTNER_PROFILE)
-    saved = await partner.put("/me/partner-clubs", json={"club_ids": club_ids})
+    saved = await partner.put("/me/clubs", json={"club_ids": club_ids})
     unknown = await partner.put(
-        "/me/partner-clubs", json={"club_ids": ["00000000-0000-0000-0000-000000000000"]}
+        "/me/clubs", json={"club_ids": ["00000000-0000-0000-0000-000000000000"]}
     )
-    cleared = await partner.put("/me/partner-clubs", json={"club_ids": [club_ids[0]]})
+    cleared = await partner.put("/me/clubs", json={"club_ids": [club_ids[0]]})
 
     assert no_profile.status_code == 409
     assert saved.status_code == 200
     assert sorted(saved.json()["club_ids"]) == sorted(club_ids)
     assert unknown.status_code == 422
     assert [c["id"] for c in cleared.json()["clubs"]] == [club_ids[0]]
-    assert (await partner.get("/me/partner-clubs")).json()["club_ids"] == [club_ids[0]]
+    assert (await partner.get("/me/clubs")).json()["club_ids"] == [club_ids[0]]
 
 
-async def test_only_partners_have_clubs(make_client: MakeClient) -> None:
-    client = await make_client("client")
-    assert (await client.get("/me/partner-clubs")).status_code == 403
+async def test_player_saves_courts_and_sees_who_plays_there(
+    make_client: MakeClient, geocoder, sources, deliver
+) -> None:
+    player = await make_client("client")
+    city = (await discover(player)).json()["city"]
+    await deliver()
+    downtown, north = [
+        c["id"] for c in (await player.get("/clubs", params={"city_id": city["id"]})).json()
+    ]
+    other_player = await make_client("client")
+    await other_player.put("/me/clubs", json={"club_ids": [downtown]})
+    approved = await make_client("partner")
+    await approved.put("/me/partner-profile", json=PARTNER_PROFILE)
+    await approved.put("/me/clubs", json={"club_ids": [downtown, north]})
+    pending = await make_client("partner")
+    await pending.put("/me/partner-profile", json=PARTNER_PROFILE)
+    await pending.put("/me/clubs", json={"club_ids": [downtown]})
+    async with get_sessionmaker()() as session:
+        approved_id = (await approved.get("/me")).json()["id"]
+        await session.execute(
+            update(PartnerProfile)
+            .where(PartnerProfile.user_id == approved_id)
+            .values(status=PartnerStatus.APPROVED)
+        )
+        await session.commit()
+
+    saved = await player.put("/me/clubs", json={"club_ids": [north, downtown, north]})
+
+    assert saved.status_code == 200  # players need no profile; duplicates collapse
+    counts = [(c["name"], c["partner_count"], c["player_count"]) for c in saved.json()["clubs"]]
+    assert counts == [  # by name; the unapproved partner and the player themself don't count
+        ("Austin Tennis Center", 1, 1),
+        ("Tennis courts", 1, 0),
+    ]
+    partner_view = (await approved.get("/me/clubs")).json()["clubs"]
+    assert {c["name"]: c["player_count"] for c in partner_view} == {
+        "Austin Tennis Center": 2,
+        "Tennis courts": 1,
+    }
+
+
+async def test_saved_court_that_vanished_can_be_kept(
+    make_client: MakeClient, geocoder, sources, deliver
+) -> None:
+    player = await make_client("client")
+    city = (await discover(player)).json()["city"]
+    await deliver()
+    downtown, north = [
+        c["id"] for c in (await player.get("/clubs", params={"city_id": city["id"]})).json()
+    ]
+    await player.put("/me/clubs", json={"club_ids": [downtown, north]})
+    async with get_sessionmaker()() as session:
+        await session.execute(update(Club).where(Club.id == north).values(active=False))
+        await session.commit()
+
+    kept = await player.put("/me/clubs", json={"club_ids": [north]})
+
+    assert kept.status_code == 200
+    assert kept.json()["club_ids"] == [north]
+
+
+async def test_admins_have_no_courts(make_client: MakeClient) -> None:
+    admin = await make_client(admin=True)
+    assert (await admin.get("/me/clubs")).status_code == 403

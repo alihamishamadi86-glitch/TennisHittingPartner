@@ -13,8 +13,8 @@ from app.models.club import (
     Club,
     ClubKind,
     DiscoveryStatus,
-    PartnerClub,
     PostalCode,
+    UserClub,
 )
 from app.models.events import OutboxEvent, ProcessedEvent
 from app.models.payment import (
@@ -71,7 +71,6 @@ __all__ = [
     "ExceptionKind",
     "OutboxEvent",
     "PartnerBackground",
-    "PartnerClub",
     "PartnerProfile",
     "PartnerStatus",
     "PartnerVerification",
@@ -88,6 +87,7 @@ __all__ = [
     "StripeEvent",
     "SystemPing",
     "User",
+    "UserClub",
     "UserRole",
     "WaiverSignature",
     "WaiverVersion",

@@ -14,15 +14,16 @@ from app.schemas.clubs import (
     ClubOut,
     DiscoveryOut,
     FocusOut,
-    PartnerClubsIn,
-    PartnerClubsOut,
+    MyClubOut,
+    MyClubsIn,
+    MyClubsOut,
 )
 from app.services import clubs as club_service
 
 router = APIRouter(tags=["clubs"])
 
 GeocoderDep = Annotated[Geocoder, Depends(get_geocoder)]
-PartnerUser = Annotated[User, Depends(require_roles(UserRole.PARTNER))]
+PlayerOrPartner = Annotated[User, Depends(require_roles(UserRole.CLIENT, UserRole.PARTNER))]
 AdminUser = Annotated[User, Depends(require_roles(UserRole.ADMIN))]
 
 
@@ -122,30 +123,41 @@ async def get_club(club_id: uuid.UUID, session: SessionDep) -> ClubOut:
     return club_out(club)
 
 
-async def _partner_clubs_out(session: SessionDep, partner_id: uuid.UUID) -> PartnerClubsOut:
-    ids = await club_service.partner_club_ids(session, partner_id)
-    clubs = (await session.scalars(select(Club).where(Club.id.in_(ids)))).all() if ids else []
-    return PartnerClubsOut(club_ids=ids, clubs=[club_out(c) for c in clubs])
+async def _my_clubs_out(session: SessionDep, user_id: uuid.UUID) -> MyClubsOut:
+    ids = await club_service.my_club_ids(session, user_id)
+    clubs = {c.id: c for c in (await session.scalars(select(Club).where(Club.id.in_(ids)))).all()}
+    counts = await club_service.court_counts(session, ids, exclude_user_id=user_id)
+    return MyClubsOut(
+        club_ids=ids,
+        clubs=[
+            MyClubOut(
+                **club_out(clubs[i]).model_dump(),
+                partner_count=counts[i].partners,
+                player_count=counts[i].players,
+            )
+            for i in ids
+        ],
+    )
 
 
-@router.get("/me/partner-clubs")
-async def get_partner_clubs(user: PartnerUser, session: SessionDep) -> PartnerClubsOut:
-    return await _partner_clubs_out(session, user.id)
+@router.get("/me/clubs")
+async def get_my_clubs(user: PlayerOrPartner, session: SessionDep) -> MyClubsOut:
+    """My courts: where a partner plays, or where a player likes to play (by name)."""
+    return await _my_clubs_out(session, user.id)
 
 
-@router.put("/me/partner-clubs")
-async def put_partner_clubs(
-    body: PartnerClubsIn, user: PartnerUser, session: SessionDep
-) -> PartnerClubsOut:
-    """Replace the set of clubs this partner plays at."""
-    if await session.get(PartnerProfile, user.id) is None:
+@router.put("/me/clubs")
+async def put_my_clubs(body: MyClubsIn, user: PlayerOrPartner, session: SessionDep) -> MyClubsOut:
+    """Replace my courts. Partners are booked at these; players get partners suggested
+    for them (GET /partners/suggested)."""
+    if user.role is UserRole.PARTNER and await session.get(PartnerProfile, user.id) is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Create your partner profile first")
     try:
-        await club_service.set_partner_clubs(session, user, body.club_ids)
+        await club_service.set_my_clubs(session, user, body.club_ids)
     except club_service.UnknownClubError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     await session.commit()
-    return await _partner_clubs_out(session, user.id)
+    return await _my_clubs_out(session, user.id)
 
 
 @router.post("/admin/cities/{city_id}/refresh", status_code=status.HTTP_202_ACCEPTED)

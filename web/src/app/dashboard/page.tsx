@@ -15,7 +15,7 @@ export const metadata = { title: "Dashboard · Tennis Hitting Partner" };
 
 type StepItem = { title: string; body: string; done?: boolean; href?: string };
 
-function clientSteps(user: User): StepItem[] {
+function clientSteps(user: User, courtCount: number): StepItem[] {
   return [
     {
       title: "Complete your player profile",
@@ -24,13 +24,18 @@ function clientSteps(user: User): StepItem[] {
       href: "/onboarding/profile",
     },
     {
-      title: "Find courts near you",
-      body: "Tennis clubs, centres and public courts in your city.",
-      href: "/clubs",
+      title: "Save your courts",
+      body: courtCount
+        ? `You play at ${courtCount} place${courtCount === 1 ? "" : "s"}.`
+        : "Pick the clubs and public courts you play at.",
+      done: courtCount > 0,
+      href: courtCount ? "/courts" : "/clubs",
     },
     {
       title: "Find a hitting partner",
-      body: "Verified partners at your level with open times near you.",
+      body: courtCount
+        ? "Verified partners at your level who play at your courts."
+        : "Verified partners at your level with open times near you.",
       href: "/partners",
     },
   ];
@@ -56,10 +61,10 @@ function partnerSteps(
       done: status === "approved",
     },
     {
-      title: "Choose your clubs",
+      title: "Choose your courts",
       body: clubCount ? `You play at ${clubCount} place${clubCount === 1 ? "" : "s"}.` : "Pick the clubs and courts you can play at.",
       done: clubCount > 0,
-      href: "/clubs",
+      href: clubCount ? "/courts" : "/clubs",
     },
     {
       title: "Set your availability",
@@ -75,19 +80,17 @@ export default async function DashboardPage() {
   if (!user.role) redirect("/onboarding/role");
 
   const api = await authedApi();
-  const [partnerProfile, partnerClubs, hasSchedule] =
-    user.role === "partner"
-      ? await Promise.all([
-          api.GET("/me/partner-profile").then((r) => r.data ?? null),
-          api.GET("/me/partner-clubs").then((r) => r.data?.club_ids.length ?? 0),
-          api.GET("/me/availability").then((r) => (r.data?.windows.length ?? 0) > 0),
-        ])
-      : [null, 0, false];
+  const hasCourts = user.role === "partner" || user.role === "client";
+  const [partnerProfile, courtCount, hasSchedule] = await Promise.all([
+    user.role === "partner" ? api.GET("/me/partner-profile").then((r) => r.data ?? null) : null,
+    hasCourts ? api.GET("/me/clubs").then((r) => r.data?.club_ids.length ?? 0) : 0,
+    user.role === "partner" ? api.GET("/me/availability").then((r) => (r.data?.windows.length ?? 0) > 0) : false,
+  ]);
   const steps =
     user.role === "partner"
-      ? partnerSteps(user, partnerProfile, partnerClubs, hasSchedule)
+      ? partnerSteps(user, partnerProfile, courtCount, hasSchedule)
       : user.role === "client"
-        ? clientSteps(user)
+        ? clientSteps(user, courtCount)
         : [];
 
   return (
