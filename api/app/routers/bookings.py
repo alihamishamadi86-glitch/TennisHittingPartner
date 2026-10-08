@@ -161,7 +161,8 @@ async def sign_waiver(
 
 @router.post("/bookings", status_code=status.HTTP_201_CREATED)
 async def create_booking(body: BookingIn, user: ClientUser, session: SessionDep) -> BookingOut:
-    """Hold a slot for the client. Confirm it (M6: pay) before `hold_expires_at`."""
+    """Hold a slot for the client, to be paid for before `hold_expires_at`. With payments
+    switched off the booking is confirmed straight away."""
     try:
         booking = await service.create_hold(
             session,
@@ -175,7 +176,7 @@ async def create_booking(body: BookingIn, user: ClientUser, session: SessionDep)
     except service.BookingError as exc:
         await session.commit()  # keep any holds we expired on the way
         raise _http_error(exc) from exc
-    await session.commit()
+    await commit_and_publish(session)
     return await booking_out(session, booking, user)
 
 

@@ -3,6 +3,11 @@ name: Deploy
 # Staging defaults come from `terraform output` (see infra/README.md). None of them are
 # sensitive; override with Actions variables (GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER,
 # GCP_DEPLOYER_SA) if the environment is rebuilt.
+#
+# Feature switches, from Actions variables (Settings → Secrets and variables → Actions →
+# Variables, on the repo or the "staging" environment). Both default to "false":
+#   PAYMENTS_ENABLED  true = checkout via Stripe; false = bookings confirm with no online payment
+#   SMS_ENABLED       true = text reminders and phone verification; false = email only
 
 on:
   push:
@@ -28,6 +33,8 @@ jobs:
       PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'deft-idiom-510807-q8' }}
       REGION: ${{ vars.GCP_REGION || 'us-central1' }}
       TAG: ${{ github.sha }}
+      PAYMENTS_ENABLED: ${{ vars.PAYMENTS_ENABLED || 'false' }}
+      SMS_ENABLED: ${{ vars.SMS_ENABLED || 'false' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -60,8 +67,16 @@ jobs:
       - name: Deploy services
         run: |
           exec > >(tee -a "$RUNNER_TEMP/deploy.log") 2>&1
-          gcloud run deploy thp-worker --region "$REGION" --image "$REGISTRY/api:$TAG"
-          gcloud run deploy thp-api    --region "$REGION" --image "$REGISTRY/api:$TAG"
+          for name in PAYMENTS_ENABLED SMS_ENABLED; do
+            value=$(tr '[:upper:]' '[:lower:]' <<<"${!name}")
+            [[ "$value" == true || "$value" == false ]] || {
+              echo "::error::Actions variable $name must be true or false (got '${!name}')"; exit 1; }
+            printf -v "$name" '%s' "$value"
+          done
+          FLAGS="PAYMENTS_ENABLED=$PAYMENTS_ENABLED,SMS_ENABLED=$SMS_ENABLED"
+          echo "Feature flags: $FLAGS"
+          gcloud run deploy thp-worker --region "$REGION" --image "$REGISTRY/api:$TAG" --update-env-vars "$FLAGS"
+          gcloud run deploy thp-api    --region "$REGION" --image "$REGISTRY/api:$TAG" --update-env-vars "$FLAGS"
           gcloud run deploy thp-web    --region "$REGION" --image "$REGISTRY/web:$TAG"
 
       - name: Smoke test event pipeline

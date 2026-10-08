@@ -39,9 +39,18 @@ ClientUser = Annotated[User, Depends(require_roles(UserRole.CLIENT))]
 AdminUser = Annotated[User, Depends(require_roles(UserRole.ADMIN))]
 
 
+def require_payments(settings: SettingsDep) -> None:
+    if not settings.payments_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Payments aren't enabled")
+
+
+PaymentsOn = Depends(require_payments)
+
+
 @router.get("/payments/config")
 async def payments_config(settings: SettingsDep) -> PaymentsConfigOut:
     return PaymentsConfigOut(
+        enabled=settings.payments_enabled,
         provider=settings.payment_provider,
         publishable_key=settings.stripe_publishable_key or None,
         currency=settings.currency,
@@ -49,7 +58,7 @@ async def payments_config(settings: SettingsDep) -> PaymentsConfigOut:
     )
 
 
-@router.post("/bookings/{booking_id}/checkout")
+@router.post("/bookings/{booking_id}/checkout", dependencies=[PaymentsOn])
 async def checkout(
     booking_id: uuid.UUID,
     body: CheckoutIn,
@@ -79,7 +88,7 @@ async def checkout(
     )
 
 
-@router.post("/webhooks/stripe", include_in_schema=False)
+@router.post("/webhooks/stripe", include_in_schema=False, dependencies=[PaymentsOn])
 async def stripe_webhook(
     request: Request,
     session: SessionDep,
@@ -122,7 +131,9 @@ async def _own_fake_payment(
     return payment
 
 
-@router.post("/dev-payments/{payment_id}/succeed", include_in_schema=False)
+@router.post(
+    "/dev-payments/{payment_id}/succeed", include_in_schema=False, dependencies=[PaymentsOn]
+)
 async def simulate_success(
     payment_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> Response:
@@ -134,7 +145,7 @@ async def simulate_success(
     return Response(status_code=204)
 
 
-@router.post("/dev-payments/{payment_id}/fail", include_in_schema=False)
+@router.post("/dev-payments/{payment_id}/fail", include_in_schema=False, dependencies=[PaymentsOn])
 async def simulate_failure(
     payment_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> Response:

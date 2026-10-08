@@ -751,7 +751,8 @@ export interface paths {
         put?: never;
         /**
          * Create Booking
-         * @description Hold a slot for the client. Confirm it (M6: pay) before `hold_expires_at`.
+         * @description Hold a slot for the client, to be paid for before `hold_expires_at`. With payments
+         *     switched off the booking is confirmed straight away.
          */
         post: operations["create_booking_bookings_post"];
         delete?: never;
@@ -1619,6 +1620,8 @@ export interface components {
         };
         /** NotificationSettingsOut */
         NotificationSettingsOut: {
+            /** Sms Available */
+            sms_available: boolean;
             /** Phone */
             phone: string | null;
             /** Phone Verified */
@@ -1872,6 +1875,8 @@ export interface components {
         PaymentStatus: "requires_payment" | "succeeded" | "failed" | "canceled";
         /** PaymentsConfigOut */
         PaymentsConfigOut: {
+            /** Enabled */
+            enabled: boolean;
             /** Provider */
             provider: string;
             /** Publishable Key */

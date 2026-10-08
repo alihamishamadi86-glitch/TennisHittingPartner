@@ -98,7 +98,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <AppHeader user={user} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-8">
-        {user.role !== "admin" && notificationSettings && !notificationSettings.phone_verified && (
+        {user.role !== "admin" && notificationSettings?.sms_available && !notificationSettings.phone_verified && (
           <Alert>
             Get session reminders by text —{" "}
             <Link href="/settings" className="font-semibold underline underline-offset-2">

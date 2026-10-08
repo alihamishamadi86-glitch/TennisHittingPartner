@@ -13,6 +13,9 @@ os.environ["AUTH_COOKIE_PATH"] = "/auth"
 os.environ["GOOGLE_CLIENT_ID"] = "test-client-id"
 os.environ["GOOGLE_CLIENT_SECRET"] = "test-client-secret"
 os.environ["EMAIL_BACKEND"] = "console"
+# Most tests exercise the full flows; tests/test_feature_flags.py covers them switched off.
+os.environ["PAYMENTS_ENABLED"] = "true"
+os.environ["SMS_ENABLED"] = "true"
 os.environ.pop("PUBSUB_EMULATOR_HOST", None)
 
 import pytest

@@ -8,6 +8,7 @@ from app.schemas.bookings import BookingOut
 
 
 class PaymentsConfigOut(BaseModel):
+    enabled: bool
     provider: str
     publishable_key: str | None
     currency: str

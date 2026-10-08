@@ -17,7 +17,17 @@ SmsDep = Annotated[SmsSender, Depends(get_sms_sender)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
+def require_sms(settings: SettingsDep) -> None:
+    if not settings.sms_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Text messages aren't enabled")
+
+
+SmsOn = Depends(require_sms)
+
+
 class NotificationSettingsOut(BaseModel):
+    # False while SMS is switched off: the UI hides phone and text-reminder settings.
+    sms_available: bool
     phone: str | None
     phone_verified: bool
     sms_reminders: bool
@@ -39,6 +49,7 @@ class CodeIn(BaseModel):
 
 def settings_out(user: User) -> NotificationSettingsOut:
     return NotificationSettingsOut(
+        sms_available=get_settings().sms_enabled,
         phone=user.phone,
         phone_verified=user.phone_verified_at is not None,
         sms_reminders=service.sms_allowed(user),
@@ -77,7 +88,7 @@ async def put_notification_settings(
     return settings_out(user)
 
 
-@router.post("/me/phone", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/me/phone", status_code=status.HTTP_202_ACCEPTED, dependencies=[SmsOn])
 async def add_phone(
     body: PhoneIn, user: CurrentUser, session: SessionDep, sms: SmsDep
 ) -> dict[str, str]:
@@ -94,7 +105,7 @@ async def add_phone(
     return {"phone": phone}
 
 
-@router.post("/me/phone/verify")
+@router.post("/me/phone/verify", dependencies=[SmsOn])
 async def verify_phone(
     body: CodeIn, user: CurrentUser, session: SessionDep
 ) -> NotificationSettingsOut:
@@ -121,7 +132,8 @@ async def twilio_inbound(
     settings: SettingsDep,
     x_twilio_signature: Annotated[str | None, Header()] = None,
 ) -> Response:
-    """Inbound texts: STOP (and synonyms) turns text reminders off for that number."""
+    """Inbound texts: STOP (and synonyms) turns text reminders off for that number. Accepted
+    even while SMS is switched off, so an opt-out is never lost."""
     form = {k: str(v) for k, v in (await request.form()).items()}
     if not twilio_signature_valid(
         str(request.url), form, x_twilio_signature, settings.twilio_auth_token.get_secret_value()

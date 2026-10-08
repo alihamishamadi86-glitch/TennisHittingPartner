@@ -70,7 +70,10 @@ def policy() -> Policy:
     settings = get_settings()
     return Policy(
         free_cancellation=timedelta(hours=settings.free_cancellation_hours),
-        late_fee_fraction=Decimal(str(settings.late_cancellation_fee_fraction)),
+        # Nothing is charged with payments off, so there's no late fee to take either.
+        late_fee_fraction=Decimal(str(settings.late_cancellation_fee_fraction))
+        if settings.payments_enabled
+        else Decimal(0),
     )
 
 
@@ -209,6 +212,8 @@ async def create_hold(
         raise BookingError("slot_unavailable", "That time isn't available — please pick another")
 
     ends_at = starts_at + timedelta(minutes=duration_minutes)
+    # With payments switched off there's nothing to hold the slot for: confirm it outright.
+    confirm_now = not settings.payments_enabled
     price_cents, partner_pay_cents = payments.pricing_for(duration_minutes)
     booking = Booking(
         client_id=client.id,
@@ -219,8 +224,9 @@ async def create_hold(
         blocked_until=ends_at + timedelta(minutes=settings.travel_buffer_minutes),
         duration_minutes=duration_minutes,
         timezone=profile.timezone,
-        status=BookingStatus.HELD,
-        hold_expires_at=now + timedelta(minutes=settings.hold_minutes),
+        status=BookingStatus.CONFIRMED if confirm_now else BookingStatus.HELD,
+        hold_expires_at=None if confirm_now else now + timedelta(minutes=settings.hold_minutes),
+        confirmed_at=now if confirm_now else None,
         client_note=note.strip(),
         currency=settings.currency,
         price_cents=price_cents,
@@ -236,6 +242,8 @@ async def create_hold(
         if constraint == CLIENT_OVERLAP_CONSTRAINT:
             raise BookingError("client_overlap", "You already have a session at that time") from exc
         raise
+    if confirm_now:
+        record_event(session, BOOKING_CONFIRMED, _event(booking))
     return booking
 
 

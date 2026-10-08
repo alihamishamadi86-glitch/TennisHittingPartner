@@ -74,7 +74,7 @@ export function SessionCard({ booking, viewer }: { booking: Booking; viewer: "cl
       )}
       {booking.note && <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">“{booking.note}”</p>}
       {booking.cancellation_reason && <p className="text-sm text-zinc-500">Reason: {booking.cancellation_reason}</p>}
-      {booking.status === "cancelled_late" && viewer === "client" && (
+      {booking.status === "cancelled_late" && viewer === "client" && Number(booking.cancellation_fee_fraction ?? 0) > 0 && (
         <p className="text-sm text-red-700 dark:text-red-400">A {Math.round((booking.cancellation_fee_fraction ?? 0) * 100)}% late-cancellation fee applies.</p>
       )}
       {booking.credit_issued && viewer === "client" && (

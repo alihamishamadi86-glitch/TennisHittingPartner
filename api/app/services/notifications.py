@@ -134,6 +134,8 @@ def remove_phone(user: User) -> None:
 
 
 def set_preferences(user: User, *, sms: bool, email: bool) -> None:
+    if sms and not get_settings().sms_enabled:
+        raise NotificationError("sms_disabled", "Text reminders aren't available yet")
     if sms and not (user.phone and user.phone_verified_at):
         raise NotificationError("phone_required", "Verify a mobile number to get text reminders")
     if sms and user.sms_opt_in_at is None:
@@ -199,7 +201,9 @@ async def schedule_for_booking(session: AsyncSession, booking: Booking) -> None:
 
 
 def sms_allowed(user: User) -> bool:
-    return bool(user.phone and user.phone_verified_at and user.sms_opt_in_at)
+    return bool(
+        get_settings().sms_enabled and user.phone and user.phone_verified_at and user.sms_opt_in_at
+    )
 
 
 async def _deliver(

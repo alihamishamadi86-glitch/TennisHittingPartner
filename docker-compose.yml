@@ -21,6 +21,10 @@ x-api-env: &api-env
   # Optional: Geoapify key (free tier) in the root .env; without it the free OSM services
   # (Nominatim geocoding + Overpass) are used.
   GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
+  # Feature switches (off by default, like the cloud). Set PAYMENTS_ENABLED=true / SMS_ENABLED=true
+  # in the root .env to try checkout or texts locally.
+  PAYMENTS_ENABLED: ${PAYMENTS_ENABLED:-false}
+  SMS_ENABLED: ${SMS_ENABLED:-false}
   # Texts are logged by the worker locally; set SMS_BACKEND=twilio + TWILIO_* in .env to send.
   SMS_BACKEND: ${SMS_BACKEND:-console}
   TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}

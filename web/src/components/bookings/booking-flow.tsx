@@ -213,10 +213,18 @@ export function BookingFlow({
             onChange={(e) => setNote(e.target.value)}
             placeholder="What would you like to work on?"
           />
+          {!paymentsConfig.enabled && (
+            <p className="text-xs text-zinc-500">
+              No payment is taken online: booking confirms your session straight away. The session fee
+              ({formatMoney(paymentsConfig.prices_cents[duration] ?? 0, paymentsConfig.currency)}) is settled with your partner.
+            </p>
+          )}
           <Button type="button" onClick={reserve} disabled={pending || !clubId || !emailVerified} className="w-fit">
             {pending
-              ? "Reserving…"
-              : `Reserve · ${formatMoney(paymentsConfig.prices_cents[duration] ?? 0, paymentsConfig.currency)}`}
+              ? "Booking…"
+              : paymentsConfig.enabled
+                ? `Reserve · ${formatMoney(paymentsConfig.prices_cents[duration] ?? 0, paymentsConfig.currency)}`
+                : "Book this session"}
           </Button>
         </div>
       )}

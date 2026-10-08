@@ -39,6 +39,7 @@ async def refunds() -> list[tuple[int, str, str]]:
 async def test_config(api_client: AsyncClient) -> None:
     body = (await api_client.get("/payments/config")).json()
     assert body == {
+        "enabled": True,
         "provider": "fake",
         "publishable_key": None,
         "currency": "usd",

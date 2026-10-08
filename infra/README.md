@@ -67,10 +67,35 @@ Works with no keys (free OSM services). Optional, recommended for production:
 - **Map tiles**: set `MAP_TILE_URL` / `MAP_TILE_ATTRIBUTION` on the web service; OSM's own tile
   server is not for production traffic.
 
+## Feature switches: payments and SMS
+
+Both are **off by default**, so the platform can open for sign-ups before charging or texting:
+
+| Switch | Off (default) | On |
+| --- | --- | --- |
+| `PAYMENTS_ENABLED` | Bookings are confirmed immediately with nothing charged online (the fee is settled with the partner). No late-cancellation fee. Checkout and Stripe webhooks return 404. | Bookings are held for 10 minutes and confirmed by payment. Stripe keys are needed (below). |
+| `SMS_ENABLED` | Email reminders only. Phone verification and the text-reminder settings are hidden, and no texts are sent. | Phone verification, SMS opt-in, and texted reminders. Twilio is needed (below). |
+
+They're set on each deploy from **GitHub Actions variables** (repo → Settings → Secrets and
+variables → Actions → *Variables*, on the repo or the `staging` environment). They're plain
+variables, not secrets: the values aren't sensitive, and secrets would mask them in the logs.
+
+```bash
+gh variable set PAYMENTS_ENABLED --body true   # then re-run the Deploy workflow
+gh variable set SMS_ENABLED --body false
+```
+
+Anything other than `true`/`false` fails the deploy. The keys must be in place before a switch
+is turned on: the API refuses to start with `PAYMENTS_ENABLED=true` in production unless Stripe
+is configured. **After a `terraform apply`, re-run the Deploy workflow.** Terraform doesn't
+manage these two variables, so an apply removes them and both switches fall back to off.
+
+Locally, set them in the root `.env` (`PAYMENTS_ENABLED=true`), then `docker compose up -d`.
+
 ## Payments (M6)
 
-Payments run on a **fake gateway** (simulated checkout) until Stripe keys are configured.
-Production refuses to start with the fake gateway.
+When `PAYMENTS_ENABLED=true`, payments run on a **fake gateway** (simulated checkout) until
+Stripe keys are configured. Production refuses to start with the fake gateway.
 
 1. Stripe Dashboard (test mode) → Developers → API keys: copy the publishable and secret keys.
 2. Developers → Webhooks → Add endpoint: `<api_url>/webhooks/stripe` (`terraform output -raw

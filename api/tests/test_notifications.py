@@ -49,6 +49,7 @@ async def test_phone_verification(make_client: MakeClient, sms_sender: InMemoryS
     assert sms_sender.outbox[0].to == "+15125550123"
     assert wrong.json()["detail"]["code"] == "wrong_code"
     assert right.json() == {
+        "sms_available": True,
         "phone": "+15125550123",
         "phone_verified": True,
         "sms_reminders": False,  # verifying isn't consent

@@ -74,6 +74,13 @@ class Settings(BaseSettings):
     gcs_bucket: str = ""
     max_photo_bytes: int = 5 * 1024 * 1024
 
+    # Feature switches, off until the platform is ready to charge / text. Set per environment
+    # (GitHub Actions variables PAYMENTS_ENABLED / SMS_ENABLED on deploy; .env locally).
+    # Payments off: bookings are confirmed straight away with nothing charged online.
+    payments_enabled: bool = False
+    # SMS off: no texts are sent and phone verification is hidden; email still works.
+    sms_enabled: bool = False
+
     # SMS: "console" logs messages; "twilio" sends. From a number or a Messaging Service.
     sms_backend: str = "console"
     twilio_account_sid: str = ""
@@ -135,6 +142,8 @@ class Settings(BaseSettings):
     def _require_real_secrets_in_cloud(self) -> "Settings":
         if self.is_cloud and self.jwt_secret.get_secret_value().startswith("local-dev-only"):
             raise ValueError("JWT_SECRET must be set in staging/production")
+        if not self.payments_enabled:
+            return self
         if self.environment is Environment.PRODUCTION and self.payment_provider != "stripe":
             raise ValueError("Production must use PAYMENT_PROVIDER=stripe")
         if self.payment_provider == "stripe" and not (
