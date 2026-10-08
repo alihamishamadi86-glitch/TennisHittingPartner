@@ -4,8 +4,8 @@ name: Deploy
 # sensitive; override with Actions variables (GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER,
 # GCP_DEPLOYER_SA) if the environment is rebuilt.
 #
-# Feature switches, from Actions variables (Settings → Secrets and variables → Actions →
-# Variables, on the repo or the "staging" environment). Both default to "false":
+# Feature switches, from Actions variables or secrets (Settings → Secrets and variables →
+# Actions, on the repo or the "staging" environment). Both default to "false":
 #   PAYMENTS_ENABLED  true = checkout via Stripe; false = bookings confirm with no online payment
 #   SMS_ENABLED       true = text reminders and phone verification; false = email only
 
@@ -33,8 +33,9 @@ jobs:
       PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'deft-idiom-510807-q8' }}
       REGION: ${{ vars.GCP_REGION || 'us-central1' }}
       TAG: ${{ github.sha }}
-      PAYMENTS_ENABLED: ${{ vars.PAYMENTS_ENABLED || 'false' }}
-      SMS_ENABLED: ${{ vars.SMS_ENABLED || 'false' }}
+      # A variable wins; a repository/environment secret of the same name also works.
+      PAYMENTS_ENABLED: ${{ vars.PAYMENTS_ENABLED || secrets.PAYMENTS_ENABLED || 'false' }}
+      SMS_ENABLED: ${{ vars.SMS_ENABLED || secrets.SMS_ENABLED || 'false' }}
     steps:
       - uses: actions/checkout@v4
 

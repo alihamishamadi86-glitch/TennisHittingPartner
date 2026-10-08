@@ -76,9 +76,10 @@ Both are **off by default**, so the platform can open for sign-ups before chargi
 | `PAYMENTS_ENABLED` | Bookings are confirmed immediately with nothing charged online (the fee is settled with the partner). No late-cancellation fee. Checkout and Stripe webhooks return 404. | Bookings are held for 10 minutes and confirmed by payment. Stripe keys are needed (below). |
 | `SMS_ENABLED` | Email reminders only. Phone verification and the text-reminder settings are hidden, and no texts are sent. | Phone verification, SMS opt-in, and texted reminders. Twilio is needed (below). |
 
-They're set on each deploy from **GitHub Actions variables** (repo → Settings → Secrets and
-variables → Actions → *Variables*, on the repo or the `staging` environment). They're plain
-variables, not secrets: the values aren't sensitive, and secrets would mask them in the logs.
+They're set on each deploy from **GitHub Actions** (repo → Settings → Secrets and variables →
+Actions, on the repo or the `staging` environment). A *variable* is preferred (the value isn't
+sensitive and stays readable in logs), but a *secret* with the same name works too; if both
+exist, the variable wins.
 
 ```bash
 gh variable set PAYMENTS_ENABLED --body true   # then re-run the Deploy workflow
