@@ -21,6 +21,8 @@ x-api-env: &api-env
   # Optional: Geoapify key (free tier) in the root .env; without it the free OSM services
   # (Nominatim geocoding + Overpass) are used.
   GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
+  # Optional: Brave Search API key to find club websites OSM/Wikidata don't list.
+  BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
   # Payments: "fake" simulates checkout. For Stripe test mode put PAYMENT_PROVIDER=stripe,
   # STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY and STRIPE_WEBHOOK_SECRET in the root .env.
   PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-fake}

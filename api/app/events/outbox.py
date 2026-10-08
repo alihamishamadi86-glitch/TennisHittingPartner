@@ -26,7 +26,18 @@ def record_event(
 async def commit_and_publish(session: AsyncSession) -> None:
     """Commit, then immediately publish the events this session recorded (best effort;
     the scheduled outbox sweep delivers anything that fails here)."""
-    events: list[OutboxEvent] = session.info.pop(_SESSION_KEY, [])
+    events = take_recorded(session)
     await session.commit()
+    await publish_events(events)
+
+
+def take_recorded(session: AsyncSession) -> list[OutboxEvent]:
+    """Events recorded in this session so far (and forget them)."""
+    events: list[OutboxEvent] = session.info.pop(_SESSION_KEY, [])
+    return events
+
+
+async def publish_events(events: list[OutboxEvent]) -> None:
+    """Publish already-committed events now rather than waiting for the sweep."""
     if events:
         await publish_committed(get_sessionmaker(), get_publisher(), [e.id for e in events])

@@ -32,6 +32,7 @@ variable "event_types" {
     "partner.application_submitted",
     "partner.verification_decided",
     "clubs.discovery.requested",
+    "clubs.enrichment.requested",
     "booking.confirmed",
     "booking.cancelled",
     "booking.completed",

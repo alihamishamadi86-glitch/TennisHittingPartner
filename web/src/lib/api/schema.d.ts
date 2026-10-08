@@ -517,6 +517,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/cities/{city_id}/enrich": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enrich City Contacts
+         * @description Re-check websites, phones and booking links for a city's clubs (runs in the worker).
+         */
+        post: operations["enrich_city_contacts_admin_cities__city_id__enrich_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/cities/{city_id}/refresh": {
         parameters: {
             query?: never;
@@ -1276,6 +1296,10 @@ export interface components {
             website: string | null;
             /** Phone */
             phone: string | null;
+            /** Email */
+            email: string | null;
+            /** Booking Url */
+            booking_url: string | null;
             /** Court Count */
             court_count: number | null;
             /** Surface */
@@ -1300,6 +1324,12 @@ export interface components {
             distance_km?: number | null;
             /** Near Court */
             near_court?: string | null;
+            /** Booking Url */
+            booking_url?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Website */
+            website?: string | null;
         };
         /** CreditOut */
         CreditOut: {
@@ -1488,6 +1518,10 @@ export interface components {
             website: string | null;
             /** Phone */
             phone: string | null;
+            /** Email */
+            email: string | null;
+            /** Booking Url */
+            booking_url: string | null;
             /** Court Count */
             court_count: number | null;
             /** Surface */
@@ -3077,6 +3111,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyClubsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enrich_city_contacts_admin_cities__city_id__enrich_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                city_id: string;
+            };
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CityOut"];
                 };
             };
             /** @description Validation Error */

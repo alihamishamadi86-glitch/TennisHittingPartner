@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     nominatim_url: str = "https://nominatim.openstreetmap.org"
     # Identifies us to OSM services, as their usage policies require.
     geo_user_agent: str = "TennisHittingPartner/0.1 (+https://github.com/tennis-hitting-partner)"
+    # Optional: finds websites for clubs OpenStreetMap/Wikidata don't know (free tier available).
+    brave_search_api_key: SecretStr = SecretStr("")
+    club_enrichment_refresh_days: int = 90
     city_search_radius_km: float = 20.0
     city_refresh_days: int = 30
     discovery_max_attempts: int = 5

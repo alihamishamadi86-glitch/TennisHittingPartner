@@ -31,6 +31,7 @@ from app.models import (
     UserRole,
 )
 from app.services.club_merge import Site, build_sites
+from app.services.contact_extraction import parse_phone
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +238,7 @@ async def save_sites(session: AsyncSession, city: City, sites: list[Site]) -> No
             "location": f"SRID=4326;POINT({site.lon} {site.lat})",
             "address": site.address,
             "website": (site.website or "")[:500] or None,
-            "phone": (site.phone or "")[:64] or None,
+            "phone": parse_phone(site.phone or "", city.country_code),
             "court_count": site.court_count,
             "surface": site.surface,
             "access": site.access,

@@ -406,6 +406,23 @@ class OverpassSource:
             return elements
         raise GeoProviderError("; ".join(errors) or "no Overpass instances configured")
 
+    async def fetch_tags(self, refs: list[str]) -> dict[str, dict[str, str]]:
+        """Current OSM tags for elements like "way/123" (one query for many)."""
+        by_type: dict[str, list[str]] = {}
+        for ref in refs:
+            kind, _, element_id = ref.partition("/")
+            if kind in {"node", "way", "relation"} and element_id.isdigit():
+                by_type.setdefault(kind, []).append(element_id)
+        if not by_type:
+            return {}
+        selectors = "".join(f"{kind}(id:{','.join(ids)});" for kind, ids in by_type.items())
+        async with _http() as client:
+            elements = await self._run(client, f"[out:json][timeout:25];({selectors});out tags;")
+        return {
+            f"{e['type']}/{e['id']}": {str(k): str(v) for k, v in (e.get("tags") or {}).items()}
+            for e in elements
+        }
+
     async def fetch(self, bbox: BBox) -> list[RawPlace]:
         async with _http() as client:
             elements = await self._run(client, overpass_query(bbox))
@@ -507,6 +524,11 @@ def get_geocoder() -> Geocoder:
     settings = get_settings()
     key = settings.geoapify_api_key.get_secret_value().strip()
     return GeoapifyGeocoder(key) if key else NominatimGeocoder(settings.nominatim_url)
+
+
+@lru_cache
+def get_overpass() -> OverpassSource:
+    return OverpassSource(get_settings().overpass_urls)
 
 
 @lru_cache

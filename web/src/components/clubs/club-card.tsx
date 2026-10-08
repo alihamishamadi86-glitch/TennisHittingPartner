@@ -9,6 +9,40 @@ const KIND_TONES = {
   public_courts: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
 } as const;
 
+const linkClass = "text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400";
+
+/** Ways to reach the venue: book a court online, call, email, website. */
+export function ClubContactLinks({
+  club,
+}: {
+  club: { booking_url?: string | null; phone?: string | null; email?: string | null; website?: string | null };
+}) {
+  return (
+    <>
+      {club.booking_url && (
+        <a href={club.booking_url} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700">
+          Book a court ↗
+        </a>
+      )}
+      {club.phone && (
+        <a href={`tel:${club.phone.replace(/\s+/g, "")}`} className={`${linkClass} tabular-nums`}>
+          {club.phone}
+        </a>
+      )}
+      {club.email && (
+        <a href={`mailto:${club.email}`} className={linkClass}>
+          Email
+        </a>
+      )}
+      {club.website && (
+        <a href={club.website} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          Website ↗
+        </a>
+      )}
+    </>
+  );
+}
+
 export function ClubCard({
   club,
   selected,
@@ -59,11 +93,7 @@ export function ClubCard({
             I play here
           </label>
         )}
-        {club.website && (
-          <a href={club.website} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400">
-            Website ↗
-          </a>
-        )}
+        <ClubContactLinks club={club} />
         {actions}
       </div>
     </li>

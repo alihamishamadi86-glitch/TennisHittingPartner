@@ -25,6 +25,8 @@ dependencies = [
     "google-cloud-storage>=2.18",
     "geoalchemy2>=0.15",
     "stripe>=11.0",
+    "phonenumbers>=8.13",
+    "beautifulsoup4>=4.12",
 ]
 
 [project.optional-dependencies]

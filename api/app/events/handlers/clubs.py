@@ -5,8 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.events.catalog import CLUBS_DISCOVERY_REQUESTED
+from app.events.catalog import CLUBS_DISCOVERY_REQUESTED, CLUBS_ENRICHMENT_REQUESTED
 from app.events.envelope import EventEnvelope
+from app.events.outbox import record_event
 from app.events.registry import handles
 from app.integrations.geo import BBox, GeoProviderError, get_place_sources
 from app.models import City, DiscoveryStatus
@@ -49,3 +50,4 @@ async def discover_clubs(session: AsyncSession, envelope: EventEnvelope) -> None
     if warnings:
         city.last_error = "Partial results: " + "; ".join(warnings)
     logger.info("Discovered %d tennis sites for %s", len(sites), city.key)
+    record_event(session, CLUBS_ENRICHMENT_REQUESTED, {"city_id": str(city_id)})

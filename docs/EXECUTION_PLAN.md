@@ -304,6 +304,14 @@ once (cached in `postal_codes`), its city is discovered, and clubs are listed by
 around it (2–25 km, across city limits). If the free-text region doesn't geocode, discovery
 retries with city + country.
 
+**Club contacts (2026-10-08):** after discovery the worker enriches clubs in time-boxed batches:
+OSM tags (re-read by id) → Wikidata P856 → optional Brave Search → polite crawl of the club's
+homepage + contact page (robots.txt, SSRF guard, size caps) extracting phone (libphonenumber),
+email and an online court-booking link (Playtomic, MatchPoint, CourtReserve, ClubSpark… or
+"book a court" links). Shown on court cards and in the booking flow so players can book the
+court. Live backfill on local data: e.g. Valencia Tennis Center → MatchPoint booking page +
+phone; most venues without a website in OSM need the search key.
+
 **Production notes**
 - Public Overpass instances were intermittently overloaded during testing (504s). Discovery
   is low-volume (one query per city per month), but for launch either add a Geoapify key

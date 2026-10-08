@@ -1,11 +1,13 @@
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.events.envelope import EventEnvelope
+from app.events.outbox import publish_events, take_recorded
 from app.models import ProcessedEvent
 
 logger = logging.getLogger(__name__)
@@ -50,6 +52,7 @@ async def dispatch(sessionmaker: async_sessionmaker[AsyncSession], envelope: Eve
 
     ran = 0
     for handler in handlers:
+        recorded: list[Any] = []
         async with sessionmaker() as session, session.begin():
             claimed = await session.execute(
                 insert(ProcessedEvent)
@@ -65,5 +68,8 @@ async def dispatch(sessionmaker: async_sessionmaker[AsyncSession], envelope: Eve
                 logger.info("Skipping duplicate %s for %s", envelope.event_id, handler.consumer)
                 continue
             await handler.fn(session, envelope)
+            recorded = take_recorded(session)
             ran += 1
+        # Committed: publish follow-up events now instead of waiting for the outbox sweep.
+        await publish_events(recorded)
     return ran

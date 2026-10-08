@@ -122,6 +122,12 @@ class Club(TimestampMixin, Base):
     surface: Mapped[str | None] = mapped_column(String(64))
     access: Mapped[str | None] = mapped_column(String(32))
     lit: Mapped[bool | None] = mapped_column(Boolean)
+    email: Mapped[str | None] = mapped_column(String(254))
+    # Where clients book a court at this venue (online booking page), when we found one.
+    booking_url: Mapped[str | None] = mapped_column(String(500))
+    website_source: Mapped[str | None] = mapped_column(String(16))  # osm | wikidata | search
+    contacts_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    contacts_status: Mapped[str | None] = mapped_column(String(32))
     # Source identifiers merged into this club, e.g. {"osm": [...], "geoapify": [...]}.
     sources: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     # False when the latest discovery no longer found it (kept for partner links).

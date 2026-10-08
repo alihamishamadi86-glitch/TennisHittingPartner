@@ -2,10 +2,11 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.deps import CurrentUser, SessionDep, require_roles
-from app.events.outbox import commit_and_publish
+from app.events.catalog import CLUBS_ENRICHMENT_REQUESTED
+from app.events.outbox import commit_and_publish, record_event
 from app.integrations.geo import Geocoder, GeoProviderError, get_geocoder
 from app.models import City, Club, DiscoveryStatus, PartnerProfile, User, UserRole
 from app.schemas.clubs import (
@@ -158,6 +159,20 @@ async def put_my_clubs(body: MyClubsIn, user: PlayerOrPartner, session: SessionD
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     await session.commit()
     return await _my_clubs_out(session, user.id)
+
+
+@router.post("/admin/cities/{city_id}/enrich", status_code=status.HTTP_202_ACCEPTED)
+async def enrich_city_contacts(city_id: uuid.UUID, _: AdminUser, session: SessionDep) -> CityOut:
+    """Re-check websites, phones and booking links for a city's clubs (runs in the worker)."""
+    city = await session.get(City, city_id)
+    if city is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "City not found")
+    await session.execute(
+        update(Club).where(Club.city_id == city_id).values(contacts_checked_at=None)
+    )
+    record_event(session, CLUBS_ENRICHMENT_REQUESTED, {"city_id": str(city_id)})
+    await commit_and_publish(session)
+    return CityOut.model_validate(city)
 
 
 @router.post("/admin/cities/{city_id}/refresh", status_code=status.HTTP_202_ACCEPTED)

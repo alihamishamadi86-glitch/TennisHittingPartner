@@ -279,7 +279,12 @@ async def get_partner(
         city=profile.city,
         region=profile.region,
         timezone=profile.timezone,
-        clubs=[ClubRefOut(id=c.id, name=c.name) for c in clubs],
+        clubs=[
+            ClubRefOut(
+                id=c.id, name=c.name, booking_url=c.booking_url, phone=c.phone, website=c.website
+            )
+            for c in clubs
+        ],
     )
 
 

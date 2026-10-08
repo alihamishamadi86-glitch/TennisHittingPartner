@@ -287,6 +287,10 @@ async def test_suggestions_come_from_the_players_courts(
         "name": "Austin Tennis Center",
         "distance_km": 0.0,
         "near_court": "Austin Tennis Center",
+        # Contact fields are filled on partner pages, not in suggestions.
+        "booking_url": None,
+        "phone": None,
+        "website": None,
     }
     assert within_5[1]["clubs"][0]["near_court"] == "Austin Tennis Center"
     assert within_5[1]["clubs"][0]["distance_km"] > 2

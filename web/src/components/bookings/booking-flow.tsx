@@ -17,7 +17,29 @@ import { formatNtrp } from "@/lib/profile/labels";
 import { CheckoutPanel } from "@/components/payments/checkout-panel";
 import { formatMoney, type PaymentsConfig } from "@/lib/payments/money";
 
+import { ClubContactLinks } from "@/components/clubs/club-card";
+
 import { WaiverForm } from "./waiver-form";
+
+/** Players arrange the court themselves; show how to book it at the chosen venue. */
+function CourtAccessNote({ club }: { club: PartnerPublic["clubs"][number] | undefined }) {
+  const canBook = club && (club.booking_url || club.phone);
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+      <p>
+        {canBook
+          ? `You book the court at ${club.name} yourself:`
+          : "You arrange court access at the venue (public courts are first come, first served)."}{" "}
+        Your partner brings a basket of balls.
+      </p>
+      {canBook && (
+        <div className="flex flex-wrap items-center gap-3">
+          <ClubContactLinks club={{ ...club, website: club.booking_url ? null : club.website }} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 const message = bookingErrorMessage;
 
@@ -181,10 +203,7 @@ export function BookingFlow({
               </label>
             ))}
           </fieldset>
-          <p className="text-xs text-zinc-500">
-            You arrange court access at the venue (public courts are first come, first served). Your partner brings a basket of
-            balls.
-          </p>
+          <CourtAccessNote club={partner.clubs.find((c) => c.id === clubId)} />
           <Textarea
             id="note"
             label="Note for your partner (optional)"

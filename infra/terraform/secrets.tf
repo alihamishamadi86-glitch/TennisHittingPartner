@@ -61,7 +61,8 @@ resource "google_secret_manager_secret_version" "geoapify_api_key_placeholder" {
 #   printf '%s' "$WHSEC" | gcloud secrets versions add stripe-webhook-secret --data-file=-
 # then set payment_provider = "stripe" and stripe_publishable_key in the tfvars.
 resource "google_secret_manager_secret" "stripe" {
-  for_each  = toset(["stripe-secret-key", "stripe-webhook-secret"])
+  # brave-search-api-key (optional): finds club websites that OSM/Wikidata don't know.
+  for_each  = toset(["stripe-secret-key", "stripe-webhook-secret", "brave-search-api-key"])
   secret_id = each.value
   replication {
     auto {}
@@ -87,6 +88,7 @@ locals {
     GEOAPIFY_API_KEY      = google_secret_manager_secret.geoapify_api_key.secret_id
     STRIPE_SECRET_KEY     = google_secret_manager_secret.stripe["stripe-secret-key"].secret_id
     STRIPE_WEBHOOK_SECRET = google_secret_manager_secret.stripe["stripe-webhook-secret"].secret_id
+    BRAVE_SEARCH_API_KEY  = google_secret_manager_secret.stripe["brave-search-api-key"].secret_id
   }
 }
 

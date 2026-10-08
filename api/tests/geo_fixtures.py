@@ -114,3 +114,22 @@ def respond(monkeypatch: pytest.MonkeyPatch) -> Callable[..., list[httpx.Request
         return seen
 
     return install
+
+
+class _NoTags:
+    async def fetch_tags(self, refs: list[str]) -> dict[str, dict[str, str]]:
+        return {}
+
+
+@pytest.fixture(autouse=True)
+def no_club_enrichment_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Discovery queues contact enrichment; never let it reach Overpass, search or club sites.
+    Tests that exercise enrichment override these."""
+    from app.integrations import web
+
+    async def refuse(urls: list[str]) -> list[web.Page]:
+        raise web.FetchError("network disabled in tests")
+
+    monkeypatch.setattr("app.events.handlers.club_contacts.get_overpass", lambda: _NoTags())
+    monkeypatch.setattr("app.events.handlers.club_contacts.get_website_search", lambda: None)
+    monkeypatch.setattr(web, "fetch_pages", refuse)

@@ -50,7 +50,7 @@ async def test_discovery_finds_and_groups_clubs(
     assert queued.status_code == 202
     city = queued.json()["city"]
     assert (city["name"], city["status"]) == ("Austin", "pending")
-    assert await deliver() == ["clubs.discovery.requested"]
+    assert "clubs.discovery.requested" in await deliver()
 
     ready = (await client.get(f"/cities/{city['id']}")).json()
     assert ready["status"] == "ready"
@@ -287,7 +287,7 @@ async def test_stale_cities_are_refreshed_by_scheduled_task(
     queued = await worker_client.post("/tasks/refresh-cities")
 
     assert queued.json() == {"queued": 1}
-    assert await deliver() == ["clubs.discovery.requested"]
+    assert "clubs.discovery.requested" in await deliver()
     assert (await client.get(f"/cities/{city['id']}")).json()["status"] == "ready"
 
 

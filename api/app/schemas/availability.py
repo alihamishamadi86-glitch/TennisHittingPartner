@@ -106,6 +106,10 @@ class ClubRefOut(BaseModel):
     distance_km: float | None = None
     # Suggestions only: the player's court this club is at (distance 0) or near.
     near_court: str | None = None
+    # How to book a court at the venue (partner pages): online link and/or phone.
+    booking_url: str | None = None
+    phone: str | None = None
+    website: str | None = None
 
 
 class PartnerCardOut(BaseModel):

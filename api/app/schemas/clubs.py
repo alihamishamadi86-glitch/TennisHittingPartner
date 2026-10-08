@@ -69,6 +69,9 @@ class ClubOut(BaseModel):
     address: str | None
     website: str | None
     phone: str | None
+    email: str | None
+    # Where to book a court at this venue online, when the club's site links to one.
+    booking_url: str | None
     court_count: int | None
     surface: str | None
     access: str | None

@@ -89,6 +89,16 @@ Locally: put `PAYMENT_PROVIDER=stripe`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE
 `stripe listen --forward-to localhost:8000/webhooks/stripe` (it prints the `whsec_…` to use).
 Test cards: `4242 4242 4242 4242` (success), `4000 0025 0000 3155` (3-D Secure).
 
+## Club contacts (websites, phones, court booking links)
+
+After discovery, the worker looks up each club's website, phone, email and online court-booking
+page: OSM tags → Wikidata → (optional) Brave Search → the club's own site (homepage + contact
+page; robots.txt respected; private/internal addresses refused). Coverage without a search key
+is limited to clubs whose website is in OSM/Wikidata. To enable search (free tier):
+`printf '%s' "$KEY" | gcloud secrets versions add brave-search-api-key --data-file=-`.
+Backfill existing cities: `gcloud run jobs execute thp-manage --wait --args=scripts.enrich_clubs`
+(add `,--force` to re-check everything).
+
 ## First admin
 
 Register the account in the web app, then promote it:
