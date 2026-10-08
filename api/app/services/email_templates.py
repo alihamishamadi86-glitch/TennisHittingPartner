@@ -184,3 +184,38 @@ def refund_email(recipient: User, amount_cents: int, currency: str) -> EmailMess
         text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
         html=_html(greeting, body, "View sessions", link, footer),
     )
+
+
+def _local(at: datetime, timezone: str) -> str:
+    local = at.astimezone(ZoneInfo(timezone))
+    return f"{local:%a %d %b, %H:%M}"
+
+
+def reminder_email(
+    recipient: User, other: User, club: str, starts_at: datetime, timezone: str, *, soon: bool
+) -> EmailMessage:
+    link = f"{get_settings().public_web_url}/sessions"
+    when = _local(starts_at, timezone)
+    greeting = f"Hi {recipient.full_name or 'there'},"
+    lead = "Starting soon" if soon else "Tomorrow"
+    body = f"{lead}: tennis with {other.full_name} at {club}, {when}."
+    footer = "Need to cancel? Do it from My sessions (free up to 12 hours before)."
+    return EmailMessage(
+        to=recipient.email,
+        subject=f"{lead}: tennis with {other.full_name}, {when}",
+        text=f"{greeting}\n\n{body}\n\n{footer}\n\n{link}\n",
+        html=_html(greeting, body, "View session", link, footer),
+    )
+
+
+def follow_up_email(client: User, partner: User) -> EmailMessage:
+    link = f"{get_settings().public_web_url}/partners/{partner.id}"
+    greeting = f"Hi {client.full_name or 'there'},"
+    body = f"Thanks for hitting with {partner.full_name}! Keep the rhythm going — book your next session."
+    footer = "Regular sessions are the fastest way to groove your strokes."
+    return EmailMessage(
+        to=client.email,
+        subject=f"Book again with {partner.full_name}?",
+        text=f"{greeting}\n\n{body}\n\n{link}\n\n{footer}\n",
+        html=_html(greeting, body, f"Book {partner.full_name} again", link, footer),
+    )

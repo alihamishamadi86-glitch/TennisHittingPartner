@@ -6,6 +6,8 @@ from email.message import EmailMessage as MimeMessage
 from functools import lru_cache
 from typing import Protocol
 
+import httpx
+
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,33 @@ class SmtpEmailSender:
         await asyncio.to_thread(self._send_sync, message)
 
 
+class ResendEmailSender:
+    """Resend's HTTP API (https://resend.com). Raises on failure so the worker retries."""
+
+    URL = "https://api.resend.com/emails"
+
+    def __init__(self, api_key: str, sender: str) -> None:
+        self._key, self._sender = api_key, sender
+
+    async def send(self, message: EmailMessage) -> None:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(
+                self.URL,
+                headers={"Authorization": f"Bearer {self._key}"},
+                json={
+                    "from": self._sender,
+                    "to": [message.to],
+                    "subject": message.subject,
+                    "text": message.text,
+                    "html": message.html,
+                },
+            )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"Resend rejected email ({response.status_code}): {response.text[:200]}"
+            )
+
+
 class ConsoleEmailSender:
     """Logs emails instead of sending them (staging until a provider is wired in M7)."""
 
@@ -68,4 +97,6 @@ def get_email_sender() -> EmailSender:
     settings = get_settings()
     if settings.email_backend == "smtp":
         return SmtpEmailSender(settings.smtp_host, settings.smtp_port, settings.email_from)
+    if settings.email_backend == "resend":
+        return ResendEmailSender(settings.resend_api_key.get_secret_value(), settings.email_from)
     return ConsoleEmailSender()

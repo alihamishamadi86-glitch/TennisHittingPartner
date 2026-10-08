@@ -80,6 +80,7 @@ export default async function DashboardPage() {
   if (!user.role) redirect("/onboarding/role");
 
   const api = await authedApi();
+  const { data: notificationSettings } = await api.GET("/me/notifications");
   const hasCourts = user.role === "partner" || user.role === "client";
   const [partnerProfile, courtCount, hasSchedule] = await Promise.all([
     user.role === "partner" ? api.GET("/me/partner-profile").then((r) => r.data ?? null) : null,
@@ -97,6 +98,15 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <AppHeader user={user} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-8">
+        {user.role !== "admin" && notificationSettings && !notificationSettings.phone_verified && (
+          <Alert>
+            Get session reminders by text —{" "}
+            <Link href="/settings" className="font-semibold underline underline-offset-2">
+              add your mobile number
+            </Link>
+            .
+          </Alert>
+        )}
         {!user.email_verified && (
           <Alert>
             Confirm your email address — we sent a link to <strong>{user.email}</strong>. <ResendVerification />

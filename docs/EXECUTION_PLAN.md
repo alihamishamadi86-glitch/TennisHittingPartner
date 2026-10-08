@@ -18,7 +18,7 @@ Google Cloud (Cloud Run, Cloud SQL Postgres + PostGIS, Pub/Sub, Cloud Tasks).
 | M5 | Booking core | ✅ Code complete |
 | M6 | Payments & policies | ✅ Code complete — Stripe keys pending |
 | M6.5 | My courts & court-based partner suggestions | ✅ Code complete |
-| M7 | Notifications | ⬜ |
+| M7 | Notifications | ✅ Code complete — Resend/Twilio accounts pending |
 | M8 | Payouts, reviews, admin, retention | ⬜ |
 
 ## Working defaults (open decisions)
@@ -417,6 +417,19 @@ from them. A "My courts" page shows each user their own courts.
 - Email (Resend/Postmark) + SMS (Twilio): confirmation, 24h/2h reminders (Cloud Tasks),
   post-session rebook link. Start Twilio 10DLC registration during M0.
 - **Exit:** a booking runs end-to-end with zero manual steps.
+
+**M7 status (2026-10-08):**
+- [x] Email via Resend (HTTP API) alongside SMTP/console; SMS via Twilio REST, console in dev
+- [x] Phone verification by 6-digit SMS code (hashed, 10 min, 5 attempts, 5 codes/hour);
+  mobile numbers only; explicit text opt-in with consent timestamp; STOP replies via a
+  signature-verified Twilio webhook turn texts off
+- [x] Reminders 24 h and 2 h before (both parties) and a rebook follow-up after the session;
+  `scheduled_notifications` + once-a-minute sweep (at most once, skipped if cancelled);
+  no texts 21:00–08:00 local; partner gets a "new session" text on confirmation
+- [x] Notification settings page; dashboard nudge to add a mobile number
+- [x] 252 backend tests; browser-verified phone verification + opt-in; live sweep sent the
+  24 h reminder email to both parties and correctly held back SMS during quiet hours
+- [ ] Resend domain + Twilio number (and US A2P 10DLC registration)
 
 ### M8 — Payouts, reviews, admin, retention (weeks 14+)
 - Stripe Connect Express payouts on completion, two-way reviews, admin dashboard.

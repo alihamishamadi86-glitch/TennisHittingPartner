@@ -61,8 +61,9 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: SecretStr = SecretStr("")
 
-    # Email: "console" logs messages (staging until M7), "smtp" sends (Mailpit locally).
+    # Email: "console" logs, "smtp" sends via SMTP (Mailpit locally), "resend" via Resend's API.
     email_backend: str = "console"
+    resend_api_key: SecretStr = SecretStr("")
     email_from: str = "Tennis Hitting Partner <no-reply@tennishittingpartner.local>"
     smtp_host: str = "localhost"
     smtp_port: int = 1025
@@ -72,6 +73,16 @@ class Settings(BaseSettings):
     local_storage_dir: str = ".media"
     gcs_bucket: str = ""
     max_photo_bytes: int = 5 * 1024 * 1024
+
+    # SMS: "console" logs messages; "twilio" sends. From a number or a Messaging Service.
+    sms_backend: str = "console"
+    twilio_account_sid: str = ""
+    twilio_auth_token: SecretStr = SecretStr("")
+    twilio_from_number: str = ""
+    twilio_messaging_service_sid: str = ""
+    # Texts aren't sent between these local hours (recipient's session timezone).
+    sms_quiet_start_hour: int = 21
+    sms_quiet_end_hour: int = 8
 
     # Club discovery. Geoapify (OSM-based, free tier) when a key is set; otherwise the free
     # OSM services (Nominatim geocoding). Overpass is always the primary court source.

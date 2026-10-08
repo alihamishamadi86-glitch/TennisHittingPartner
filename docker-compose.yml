@@ -21,6 +21,11 @@ x-api-env: &api-env
   # Optional: Geoapify key (free tier) in the root .env; without it the free OSM services
   # (Nominatim geocoding + Overpass) are used.
   GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
+  # Texts are logged by the worker locally; set SMS_BACKEND=twilio + TWILIO_* in .env to send.
+  SMS_BACKEND: ${SMS_BACKEND:-console}
+  TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+  TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+  TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
   # Optional: Brave Search API key to find club websites OSM/Wikidata don't list.
   BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
   # Payments: "fake" simulates checkout. For Stripe test mode put PAYMENT_PROVIDER=stripe,

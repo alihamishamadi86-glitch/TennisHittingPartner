@@ -29,6 +29,7 @@ pytest_plugins = ["tests.geo_fixtures", "tests.booking_fixtures"]
 
 if TYPE_CHECKING:
     from app.integrations.payments import FakeGateway
+    from app.integrations.sms import InMemorySmsSender
     from app.integrations.storage import LocalStorage
 
 API_DIR = Path(__file__).resolve().parent.parent
@@ -54,7 +55,8 @@ async def clean_tables() -> AsyncIterator[None]:
                 " refresh_tokens, email_tokens, client_profiles, partner_profiles,"
                 " partner_verifications, cities, city_aliases, clubs, user_clubs, postal_codes,"
                 " availability_rules, availability_exceptions, bookings, waiver_signatures,"
-                " payments, refunds, credits, promo_codes, promo_redemptions, stripe_events"
+                " payments, refunds, credits, promo_codes, promo_redemptions, stripe_events,"
+                " scheduled_notifications, phone_verifications"
                 " RESTART IDENTITY CASCADE"
             )
         )
@@ -169,3 +171,17 @@ def gateway(monkeypatch: pytest.MonkeyPatch) -> Iterator["FakeGateway"]:
     monkeypatch.setattr("app.events.handlers.payments.get_gateway", lambda: fake)
     yield fake
     app.dependency_overrides.pop(get_gateway, None)
+
+
+@pytest.fixture(autouse=True)
+def sms_sender(monkeypatch: pytest.MonkeyPatch) -> Iterator["InMemorySmsSender"]:
+    """Every test texts into memory; never the console or Twilio."""
+    from app.integrations.sms import InMemorySmsSender, get_sms_sender
+    from app.main import app
+
+    fake = InMemorySmsSender()
+    app.dependency_overrides[get_sms_sender] = lambda: fake
+    monkeypatch.setattr("app.events.handlers.bookings.get_sms_sender", lambda: fake)
+    monkeypatch.setattr("app.worker.get_sms_sender", lambda: fake)
+    yield fake
+    app.dependency_overrides.pop(get_sms_sender, None)

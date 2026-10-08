@@ -99,6 +99,23 @@ is limited to clubs whose website is in OSM/Wikidata. To enable search (free tie
 Backfill existing cities: `gcloud run jobs execute thp-manage --wait --args=scripts.enrich_clubs`
 (add `,--force` to re-check everything).
 
+## Notifications (M7)
+
+Emails and texts are logged (console backends) until providers are configured.
+
+- **Email (Resend):** verify your sending domain in Resend (adds SPF/DKIM DNS records), then
+  `printf '%s' "$KEY" | gcloud secrets versions add resend-api-key --data-file=-` and set
+  `email_backend = "resend"` and `email_from = "Tennis Hitting Partner <hello@yourdomain>"`.
+- **SMS (Twilio):** `printf '%s' "$TOKEN" | gcloud secrets versions add twilio-auth-token --data-file=-`,
+  set `sms_backend = "twilio"`, `twilio_account_sid` and either `twilio_messaging_service_sid`
+  (recommended; handles opt-outs) or `twilio_from_number`. Point the number's incoming-message
+  webhook to `<api_url>/webhooks/twilio/sms` so STOP replies turn reminders off.
+  **US numbers need A2P 10DLC registration** (brand + campaign) before texts deliver reliably —
+  start it early, it can take days to weeks.
+
+Reminders (24 h and 2 h before) and the post-session rebook message are sent by the
+`send-notifications` scheduler job every minute. No texts between 21:00 and 08:00 local time.
+
 ## First admin
 
 Register the account in the web app, then promote it:

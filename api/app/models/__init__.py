@@ -17,6 +17,12 @@ from app.models.club import (
     UserClub,
 )
 from app.models.events import OutboxEvent, ProcessedEvent
+from app.models.notification import (
+    NotificationKind,
+    NotificationStatus,
+    PhoneVerification,
+    ScheduledNotification,
+)
 from app.models.payment import (
     Credit,
     CreditReason,
@@ -69,6 +75,8 @@ __all__ = [
     "EmailToken",
     "EmailTokenPurpose",
     "ExceptionKind",
+    "NotificationKind",
+    "NotificationStatus",
     "OutboxEvent",
     "PartnerBackground",
     "PartnerProfile",
@@ -76,6 +84,7 @@ __all__ = [
     "PartnerVerification",
     "Payment",
     "PaymentStatus",
+    "PhoneVerification",
     "PlayStyle",
     "PostalCode",
     "ProcessedEvent",
@@ -84,6 +93,7 @@ __all__ = [
     "RefreshToken",
     "Refund",
     "RefundStatus",
+    "ScheduledNotification",
     "StripeEvent",
     "SystemPing",
     "User",

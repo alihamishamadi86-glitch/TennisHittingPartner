@@ -1,17 +1,22 @@
 import uuid
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.events.catalog import BOOKING_CANCELLED, BOOKING_CONFIRMED, BOOKING_RAINED_OUT
 from app.events.envelope import EventEnvelope
 from app.events.registry import handles
 from app.integrations.email import get_email_sender
+from app.integrations.sms import SmsMessage, get_sms_sender
 from app.models import Booking, Club, User
 from app.services.email_templates import (
     booking_cancelled_email,
     booking_confirmed_email,
     booking_rained_out_email,
 )
+from app.services.notifications import quiet, schedule_for_booking, sms_allowed
 
 
 async def _load(
@@ -38,6 +43,24 @@ async def email_confirmation(session: AsyncSession, envelope: EventEnvelope) -> 
     args = (club.name, booking.starts_at, booking.timezone, booking.duration_minutes)
     await sender.send(booking_confirmed_email(client, partner, *args, to_partner=False))
     await sender.send(booking_confirmed_email(partner, client, *args, to_partner=True))
+
+    # Text the partner (not at night): a new session in their diary.
+    if sms_allowed(partner) and not quiet(datetime.now(UTC), booking.timezone):
+        when = booking.starts_at.astimezone(ZoneInfo(booking.timezone)).strftime("%a %d %b %H:%M")
+        await get_sms_sender().send(
+            SmsMessage(
+                partner.phone or "",
+                f"New session: {client.full_name}, {when} at {club.name}. "
+                f"{get_settings().public_web_url}/sessions",
+            )
+        )
+
+
+@handles(BOOKING_CONFIRMED, consumer="bookings.schedule_notifications")
+async def schedule_notifications(session: AsyncSession, envelope: EventEnvelope) -> None:
+    booking = await session.get(Booking, uuid.UUID(envelope.data["booking_id"]))
+    if booking is not None:
+        await schedule_for_booking(session, booking)
 
 
 @handles(BOOKING_CANCELLED, consumer="bookings.email_cancellation")

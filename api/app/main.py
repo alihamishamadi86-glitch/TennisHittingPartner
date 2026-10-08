@@ -18,6 +18,7 @@ from app.routers import (
     health,
     levels,
     me,
+    notifications,
     payments,
     profiles,
     system,
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(bookings.router)
     app.include_router(geo.router)
     app.include_router(payments.router)
+    app.include_router(notifications.router)
     if settings.storage_backend == "local":
         app.include_router(dev_storage.router)
     if settings.enable_system_ping:

@@ -27,6 +27,7 @@ dependencies = [
     "stripe>=11.0",
     "phonenumbers>=8.13",
     "beautifulsoup4>=4.12",
+    "python-multipart>=0.0.12",
 ]
 
 [project.optional-dependencies]

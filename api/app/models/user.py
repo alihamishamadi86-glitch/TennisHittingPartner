@@ -42,6 +42,15 @@ class User(TimestampMixin, Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Notifications. Phone is E.164 and only set once verified by SMS code.
+    phone: Mapped[str | None] = mapped_column(String(20))
+    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Explicit opt-in to texts (TCPA/consent): when, and switched off by STOP replies.
+    sms_opt_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    email_reminders: Mapped[bool] = mapped_column(
+        default=True, server_default="true", nullable=False
+    )
+
     identities: Mapped[list["AuthIdentity"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )

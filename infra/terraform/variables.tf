@@ -77,3 +77,35 @@ variable "stripe_publishable_key" {
   default     = ""
   description = "Stripe publishable key (pk_test_… / pk_live_…). Public by design."
 }
+
+variable "email_backend" {
+  type        = string
+  default     = "console"
+  description = "\"resend\" once the API key is in Secret Manager; \"console\" logs emails."
+}
+
+variable "email_from" {
+  type    = string
+  default = "Tennis Hitting Partner <no-reply@tennishittingpartner.local>"
+}
+
+variable "sms_backend" {
+  type        = string
+  default     = "console"
+  description = "\"twilio\" once the auth token is in Secret Manager; \"console\" logs texts."
+}
+
+variable "twilio_account_sid" {
+  type    = string
+  default = ""
+}
+
+variable "twilio_from_number" {
+  type    = string
+  default = ""
+}
+
+variable "twilio_messaging_service_sid" {
+  type    = string
+  default = ""
+}

@@ -38,6 +38,9 @@ export function AppHeader({ user }: { user: User }) {
             Partner queue
           </Link>
         )}
+        <Link href="/settings" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 md:inline dark:text-zinc-300 dark:hover:bg-zinc-800">
+          Settings
+        </Link>
         <span className="hidden items-center gap-2 text-sm text-zinc-600 sm:flex dark:text-zinc-400">
           <Avatar src={user.avatar_url} name={user.full_name || user.email} size={28} />
           {user.email}

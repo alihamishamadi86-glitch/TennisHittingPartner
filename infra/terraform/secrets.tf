@@ -79,6 +79,27 @@ resource "google_secret_manager_secret_version" "stripe_placeholder" {
   }
 }
 
+# Notifications (M7): Twilio auth token and Resend API key. Placeholders until set:
+#   printf '%s' "$TOKEN" | gcloud secrets versions add twilio-auth-token --data-file=-
+#   printf '%s' "$KEY" | gcloud secrets versions add resend-api-key --data-file=-
+resource "google_secret_manager_secret" "notifications" {
+  for_each  = toset(["twilio-auth-token", "resend-api-key"])
+  secret_id = each.value
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.enabled]
+}
+
+resource "google_secret_manager_secret_version" "notifications_placeholder" {
+  for_each    = google_secret_manager_secret.notifications
+  secret      = each.value.id
+  secret_data = " "
+  lifecycle {
+    ignore_changes = [secret_data, enabled]
+  }
+}
+
 locals {
   # env var name => secret id
   backend_secrets = {
@@ -89,6 +110,8 @@ locals {
     STRIPE_SECRET_KEY     = google_secret_manager_secret.stripe["stripe-secret-key"].secret_id
     STRIPE_WEBHOOK_SECRET = google_secret_manager_secret.stripe["stripe-webhook-secret"].secret_id
     BRAVE_SEARCH_API_KEY  = google_secret_manager_secret.stripe["brave-search-api-key"].secret_id
+    TWILIO_AUTH_TOKEN     = google_secret_manager_secret.notifications["twilio-auth-token"].secret_id
+    RESEND_API_KEY        = google_secret_manager_secret.notifications["resend-api-key"].secret_id
   }
 }
 
@@ -107,5 +130,6 @@ resource "google_secret_manager_secret_iam_member" "backend_access" {
     google_secret_manager_secret_version.google_client_secret_placeholder,
     google_secret_manager_secret_version.geoapify_api_key_placeholder,
     google_secret_manager_secret_version.stripe_placeholder,
+    google_secret_manager_secret_version.notifications_placeholder,
   ]
 }

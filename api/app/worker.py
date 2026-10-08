@@ -27,7 +27,10 @@ from app.events.outbox import commit_and_publish
 from app.events.publisher import get_publisher
 from app.events.registry import dispatch
 from app.events.relay import relay_outbox
+from app.integrations.email import get_email_sender
+from app.integrations.sms import get_sms_sender
 from app.routers import health
+from app.services import notifications
 from app.services.bookings import expire_stale_holds
 from app.services.clubs import queue_refresh, stale_cities
 
@@ -45,6 +48,11 @@ class PushRequest(BaseModel):
     subscription: str = ""
 
 
+async def send_notifications() -> int:
+    async with get_sessionmaker()() as session, session.begin():
+        return await notifications.send_due(session, get_email_sender(), get_sms_sender())
+
+
 async def expire_holds() -> int:
     async with get_sessionmaker()() as session, session.begin():
         return await expire_stale_holds(session, datetime.now(UTC))
@@ -59,6 +67,7 @@ async def _relay_loop(interval: float) -> None:
                 get_sessionmaker(), get_publisher(), settings.outbox_relay_batch_size
             )
             await expire_holds()
+            await send_notifications()
         except Exception:
             logger.exception("Maintenance loop iteration failed")
         await asyncio.sleep(interval)
@@ -115,6 +124,11 @@ def create_worker_app() -> FastAPI:
     async def expire_holds_task() -> dict[str, int]:
         """Every minute (Cloud Scheduler): release booking holds whose checkout lapsed."""
         return {"expired": await expire_holds()}
+
+    @app.post("/tasks/send-notifications", dependencies=[Depends(verify_push_request)])
+    async def send_notifications_task() -> dict[str, int]:
+        """Every minute (Cloud Scheduler): send reminders and follow-ups that are due."""
+        return {"processed": await send_notifications()}
 
     @app.post("/tasks/refresh-cities", dependencies=[Depends(verify_push_request)])
     async def refresh_cities() -> dict[str, int]:
