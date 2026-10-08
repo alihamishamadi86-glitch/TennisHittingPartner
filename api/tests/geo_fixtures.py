@@ -1,10 +1,19 @@
 """Fake geocoder and place sources for club discovery tests (registered in conftest)."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
+import httpx
 import pytest
 
-from app.integrations.geo import BBox, GeocodedCity, GeocodedPostcode, RawPlace, get_geocoder
+from app.integrations import geo
+from app.integrations.geo import (
+    BBox,
+    GeocodedCity,
+    GeocodedPostcode,
+    RawPlace,
+    ReverseGeocoded,
+    get_geocoder,
+)
 from tests.test_club_merge import BASE_LAT, BASE_LON, court, facility
 
 AUSTIN = GeocodedCity(
@@ -24,6 +33,7 @@ class FakeGeocoder:
         self.result: GeocodedCity | None = AUSTIN
         self.error: Exception | None = None
         self.unknown_regions: set[str] = set()
+        self.reversed: ReverseGeocoded | None = ReverseGeocoded("Austin", "Texas", "78701", "US")
         self.postcodes: dict[str, GeocodedPostcode] = {
             # ~2.2 km north of downtown, next to the northern public courts in PLACES
             "78751": GeocodedPostcode("78751", "US", BASE_LAT + 0.02, BASE_LON, "Austin", "TX"),
@@ -43,6 +53,12 @@ class FakeGeocoder:
         if self.error:
             raise self.error
         return self.postcodes.get(postal_code)
+
+    async def reverse(self, lat: float, lon: float):  # type: ignore[no-untyped-def]
+        self.calls.append(("reverse", f"{lat},{lon}", ""))
+        if self.error:
+            raise self.error
+        return self.reversed
 
 
 class FakeSource:
@@ -79,3 +95,22 @@ def sources(monkeypatch: pytest.MonkeyPatch) -> list[FakeSource]:
     fakes = [FakeSource("osm", PLACES), FakeSource("geoapify", [])]
     monkeypatch.setattr("app.events.handlers.clubs.get_place_sources", lambda: tuple(fakes))
     return fakes
+
+
+@pytest.fixture
+def respond(monkeypatch: pytest.MonkeyPatch) -> Callable[..., list[httpx.Request]]:
+    """Route provider HTTP calls to a canned response; returns the captured requests."""
+
+    def install(body: object, status: int = 200) -> list[httpx.Request]:
+        seen: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(status, json=body)
+
+        monkeypatch.setattr(
+            geo, "_http", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        )
+        return seen
+
+    return install

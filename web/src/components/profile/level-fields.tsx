@@ -7,6 +7,8 @@ import { Select } from "@/components/ui/select";
 import { COUNTRIES, HAND_LABELS, STYLE_LABELS } from "@/lib/profile/labels";
 import type { DominantHand, PlayStyle } from "@/lib/profile/types";
 
+import { UseLocationButton } from "@/components/geo/use-location-button";
+
 import { LevelPicker } from "./level-picker";
 
 export type LevelState = {
@@ -117,6 +119,20 @@ export function LocationFields({ state, setState }: Props) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="sm:col-span-2">
+        <UseLocationButton
+          label="Fill in from my location"
+          onLocated={({ address }) =>
+            setState({
+              ...state,
+              city: address.city ?? state.city,
+              region: address.region ?? "",
+              postal_code: address.postal_code ?? "",
+              country_code: address.country_code ?? state.country_code,
+            })
+          }
+        />
+      </div>
+      <div className="sm:col-span-2">
         <Field id="city" label="City" autoComplete="address-level2" value={state.city} onChange={(e) => set("city", e.target.value)} required />
       </div>
       <Field
@@ -134,7 +150,11 @@ export function LocationFields({ state, setState }: Props) {
         value={state.postal_code}
         onChange={(e) => set("postal_code", e.target.value)}
       />
-      <Select id="country_code" label="Country" options={COUNTRIES} value={state.country_code} onChange={(e) => set("country_code", e.target.value)} />
+      <Select
+        id="country_code"
+        label="Country"
+        options={COUNTRIES.some(([code]) => code === state.country_code) ? COUNTRIES : [...COUNTRIES, [state.country_code, state.country_code]]}
+        value={state.country_code} onChange={(e) => set("country_code", e.target.value)} />
     </div>
   );
 }

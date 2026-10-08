@@ -837,6 +837,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/geo/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reverse Geocode
+         * @description City, region, postal code and country for a point (e.g. the browser's location).
+         */
+        get: operations["reverse_geocode_geo_reverse_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/system/ping": {
         parameters: {
             query?: never;
@@ -1598,6 +1618,17 @@ export interface components {
             token: string;
             /** Password */
             password: string;
+        };
+        /** ReverseOut */
+        ReverseOut: {
+            /** City */
+            city: string | null;
+            /** Region */
+            region: string | null;
+            /** Postal Code */
+            postal_code: string | null;
+            /** Country Code */
+            country_code: string | null;
         };
         /** RoleIn */
         RoleIn: {
@@ -3502,6 +3533,49 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BookingOut"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reverse_geocode_geo_reverse_get: {
+        parameters: {
+            query: {
+                lat: number;
+                lon: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                thp_access?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReverseOut"];
+                };
+            };
+            /** @description Nothing found here */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

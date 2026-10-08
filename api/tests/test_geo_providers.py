@@ -1,5 +1,3 @@
-from collections.abc import Callable
-
 import httpx
 import pytest
 
@@ -15,25 +13,6 @@ from app.integrations.geo import (
 )
 
 BOX = BBox(30.1, -97.9, 30.5, -97.5)
-
-
-@pytest.fixture
-def respond(monkeypatch: pytest.MonkeyPatch) -> Callable[..., list[httpx.Request]]:
-    """Route provider HTTP calls to a canned response; returns the captured requests."""
-
-    def install(body: object, status: int = 200) -> list[httpx.Request]:
-        seen: list[httpx.Request] = []
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            seen.append(request)
-            return httpx.Response(status, json=body)
-
-        monkeypatch.setattr(
-            geo, "_http", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        )
-        return seen
-
-    return install
 
 
 async def test_overpass_parses_tennis_places_and_landmarks(

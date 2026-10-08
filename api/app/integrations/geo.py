@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 GEOAPIFY_GEOCODE_URL = "https://api.geoapify.com/v1/geocode/search"
 GEOAPIFY_PLACES_URL = "https://api.geoapify.com/v2/places"
+GEOAPIFY_REVERSE_URL = "https://api.geoapify.com/v1/geocode/reverse"
 
 
 class GeoProviderError(Exception):
@@ -60,6 +61,23 @@ class GeocodedPostcode:
     lon: float
     city: str | None
     region: str | None
+
+
+@dataclass(frozen=True)
+class ReverseGeocoded:
+    city: str | None
+    region: str | None
+    postal_code: str | None
+    country_code: str | None
+
+
+def _city_from(address: dict[str, Any]) -> str | None:
+    return (
+        address.get("city")
+        or address.get("town")
+        or address.get("village")
+        or address.get("municipality")
+    )
 
 
 @dataclass(frozen=True)
@@ -123,6 +141,8 @@ class Geocoder(Protocol):
     async def geocode_postcode(
         self, postal_code: str, country_code: str
     ) -> GeocodedPostcode | None: ...
+
+    async def reverse(self, lat: float, lon: float) -> ReverseGeocoded | None: ...
 
 
 class GeoapifyGeocoder:
@@ -199,6 +219,30 @@ class GeoapifyGeocoder:
             region=top.get("state_code") or top.get("state"),
         )
 
+    async def reverse(self, lat: float, lon: float) -> ReverseGeocoded | None:
+        async with _http() as client:
+            body = await _get_json(
+                client,
+                GEOAPIFY_REVERSE_URL,
+                params={
+                    "lat": lat,
+                    "lon": lon,
+                    "format": "json",
+                    "lang": "en",
+                    "apiKey": self._key,
+                },
+            )
+        results = body.get("results") or []
+        if not results:
+            return None
+        top = results[0]
+        return ReverseGeocoded(
+            city=_city_from(top),
+            region=top.get("state"),
+            postal_code=top.get("postcode"),
+            country_code=(top.get("country_code") or "").upper() or None,
+        )
+
 
 class NominatimGeocoder:
     """Free OSM geocoder. Usage policy: ≤1 request/second with an identifying User-Agent —
@@ -268,11 +312,32 @@ class NominatimGeocoder:
             country_code=country_code.upper(),
             lat=float(top["lat"]),
             lon=float(top["lon"]),
-            city=address.get("city")
-            or address.get("town")
-            or address.get("village")
-            or address.get("municipality"),
+            city=_city_from(address),
             region=address.get("state"),
+        )
+
+    async def reverse(self, lat: float, lon: float) -> ReverseGeocoded | None:
+        async with _http() as client:
+            body = await _get_json(
+                client,
+                f"{self._base}/reverse",
+                params={
+                    "lat": lat,
+                    "lon": lon,
+                    "format": "jsonv2",
+                    "addressdetails": 1,
+                    "zoom": 18,
+                    "accept-language": "en",
+                },
+            )
+        address = body.get("address") if isinstance(body, dict) else None
+        if not address:
+            return None
+        return ReverseGeocoded(
+            city=_city_from(address),
+            region=address.get("state"),
+            postal_code=address.get("postcode"),
+            country_code=(address.get("country_code") or "").upper() or None,
         )
 
 

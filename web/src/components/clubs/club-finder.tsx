@@ -9,7 +9,9 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { apiBrowser } from "@/lib/api/browser";
 import { errorMessage } from "@/lib/api/errors";
-import type { City, Club, ClubKind, Focus, MapTiles } from "@/lib/clubs/types";
+import type { City, Club, ClubKind, MapFocus as Focus, MapTiles } from "@/lib/clubs/types";
+import { UseLocationButton } from "@/components/geo/use-location-button";
+import { detectLocation, locationPermission, type DetectedLocation } from "@/lib/geo/browser-location";
 import { COUNTRIES } from "@/lib/profile/labels";
 
 import { ClubCard } from "./club-card";
@@ -44,6 +46,7 @@ export function ClubFinder({
   const [city, setCity] = useState<City | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [radiusKm, setRadiusKm] = useState<number>(5);
+  const [usingDevice, setUsingDevice] = useState(false);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [error, setError] = useState<string>();
   const [searching, setSearching] = useState(false);
@@ -63,7 +66,7 @@ export function ClubFinder({
   }, []);
 
   const search = useCallback(
-    async (target: Location) => {
+    async (target: Location, exact?: { lat: number; lon: number }) => {
       const token = ++searchToken.current;
       setSearching(true);
       setError(undefined);
@@ -82,7 +85,12 @@ export function ClubFinder({
         return;
       }
       let current = data.city;
-      const around = data.focus ?? null;
+      // An exact browser position beats the postcode's centre.
+      const around: Focus | null = exact
+        ? { label: "your location", lat: exact.lat, lon: exact.lon }
+        : data.focus
+          ? { label: data.focus.postal_code, lat: data.focus.lat, lon: data.focus.lon }
+          : null;
       setCity(current);
       setFocus(around);
       // Show what we already have (e.g. during a refresh) while discovery runs.
@@ -117,13 +125,43 @@ export function ClubFinder({
     if (city && focus) void loadClubs(city.id, focus, km);
   }
 
-  // Search the user's home city on arrival. Scheduled (not called inline) so state updates
-  // happen outside the effect body, and StrictMode's double-mount cancels the duplicate.
+  const applyDetected = useCallback(
+    (detected: DetectedLocation) => {
+      const { address } = detected;
+      const next: Location = {
+        city: address.city ?? "",
+        region: address.region ?? "",
+        postal_code: address.postal_code ?? "",
+        country_code: address.country_code ?? "US",
+      };
+      setLocation(next);
+      setUsingDevice(true);
+      void search(next, { lat: detected.lat, lon: detected.lon });
+    },
+    [search],
+  );
+
+  // On arrival: show the profile's city right away, then — if the browser shares the user's
+  // position (Chrome asks the first time) — switch to courts around where they actually are.
+  // Scheduled rather than inline so state updates happen outside the effect body, and
+  // StrictMode's double-mount cancels the duplicate.
   useEffect(() => {
-    if (!initialLocation?.city) return;
-    const timer = setTimeout(() => void search(initialLocation), 0);
-    return () => clearTimeout(timer);
-  }, [initialLocation, search]);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (initialLocation?.city) void search(initialLocation);
+      if ((await locationPermission()) === "denied" || cancelled) return;
+      try {
+        const detected = await detectLocation();
+        if (!cancelled) applyDetected(detected);
+      } catch {
+        // Declined or unavailable: the profile city stays.
+      }
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [initialLocation, search, applyDetected]);
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -163,7 +201,10 @@ export function ClubFinder({
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (location.city.trim() || location.postal_code.trim()) void search(location);
+    if (location.city.trim() || location.postal_code.trim()) {
+      setUsingDevice(false);
+      void search(location);
+    }
   }
 
   const center: [number, number] = focus ? [focus.lat, focus.lon] : city ? [city.lat, city.lon] : [39.5, -98.35];
@@ -181,11 +222,32 @@ export function ClubFinder({
           value={location.postal_code}
           onChange={(e) => setLocation({ ...location, postal_code: e.target.value })}
         />
-        <Select id="country_code" label="Country" options={COUNTRIES} value={location.country_code} onChange={(e) => setLocation({ ...location, country_code: e.target.value })} />
+        <Select
+          id="country_code"
+          label="Country"
+          options={COUNTRIES.some(([code]) => code === location.country_code) ? COUNTRIES : [...COUNTRIES, [location.country_code, location.country_code]]}
+          value={location.country_code} onChange={(e) => setLocation({ ...location, country_code: e.target.value })} />
         <Button type="submit" disabled={searching || (!location.city.trim() && !location.postal_code.trim())}>
           {searching ? "Searching…" : "Find courts"}
         </Button>
       </form>
+
+      <div className="-mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <UseLocationButton onLocated={applyDetected} />
+        {usingDevice && initialLocation?.city && (
+          <button
+            type="button"
+            onClick={() => {
+              setLocation(initialLocation);
+              setUsingDevice(false);
+              void search(initialLocation);
+            }}
+            className="text-sm text-zinc-500 hover:underline"
+          >
+            Use my profile city ({initialLocation.city}) instead
+          </button>
+        )}
+      </div>
 
       {error && <Alert tone="error">{error}</Alert>}
       {searching && city && (city.status === "pending" || city.status === "running") && (
@@ -215,7 +277,7 @@ export function ClubFinder({
                         </option>
                       ))}
                     </select>{" "}
-                    of {focus.postal_code}
+                    of {focus.label}
                   </>
                 ) : (
                   <>

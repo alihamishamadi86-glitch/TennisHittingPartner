@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 
-import type { Club, Focus, MapTiles } from "@/lib/clubs/types";
+import type { Club, MapFocus as Focus, MapTiles } from "@/lib/clubs/types";
 
 const COLORS = { club: "#7c3aed", sports_centre: "#0284c7", public_courts: "#059669" } as const;
 
@@ -73,7 +73,7 @@ export default function ClubMap({
           pathOptions={{ color: "#18181b", weight: 3, fillColor: "#fbbf24", fillOpacity: 1 }}
         >
           <Tooltip direction="top" offset={[0, -6]} permanent>
-            {focus.postal_code}
+            {focus.label}
           </Tooltip>
         </CircleMarker>
       )}
